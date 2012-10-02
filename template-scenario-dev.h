@@ -76,7 +76,7 @@ static void TemplateScenario (int n_ue, string scheduler_type, int seed)
 
 
   //Opening setup file
-  f_setup.open("/home/saulo/dev/smata/src/setup.cfg");
+  f_setup.open("/home/saulo/dev/lte-sim-helper/setup-dev.cfg");
   if (f_setup.is_open())
     cout<<"Setup file successfully open!"<<endl;
   else

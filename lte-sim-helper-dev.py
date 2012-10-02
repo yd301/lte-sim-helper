@@ -30,7 +30,7 @@ class LteSimHelper(object):
     def __init__(self):
 
         print '>> Hi, welcome!\n>> I`m processing your simulation parameters... '                
-        self.par_dict = self.parse_setup_file('setup.cfg')
+        self.par_dict = self.parse_setup_file('setup-dev.cfg')
         self.users_list = self.get_users_list()
         
         self.schedulers_list = self.par_dict['SCHEDULERS'].split()      
