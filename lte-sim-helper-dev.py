@@ -1,0 +1,528 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
+
+'''
+Copyright (c) 2012 Federal University of Uberlândia
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 3 as
+published by the Free Software Foundation;
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, see <http://www.gnu.org/licenses/>.
+
+Author: Saulo da Mata <damata.saulo@gmail.com>
+'''
+
+from subprocess import call
+from multiprocessing import Process, Queue, cpu_count
+import sys, time, numpy
+from datetime import timedelta, datetime
+
+
+class LteSimHelper(object):
+    
+    def __init__(self):
+
+        print '>> Hi, welcome!\n>> I`m processing your simulation parameters... '                
+        self.par_dict = self.parse_setup_file('setup.cfg')
+        self.users_list = self.get_users_list()
+        
+        self.schedulers_list = self.par_dict['SCHEDULERS'].split()      
+
+        self.bw = float(self.par_dict['DL_BW']) * pow(10, 6)
+        self.n_dec = int(self.par_dict['N_DEC'])
+               
+        self.flow_list = []                               
+        if int(self.par_dict['N_VOIP']):
+            self.flow_list.append('VOIP')
+        
+        if int(self.par_dict['N_VIDEO']):
+            self.flow_list.append('VIDEO')
+        
+        if int(self.par_dict['N_BE']):
+            self.flow_list.append('INF_BUF')
+        
+       
+#------------------------------------------------------------------------------        
+    def get_parameters(self):
+        
+        seed = -1
+        commands = []
+        
+        for s in self.schedulers_list:
+            for u in self.users_list:       
+                for i in range(int(self.par_dict['NUM_SIM'])):
+                    tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
+                    tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
+                    tmp += s + ' ' + str(seed)
+                    tmp2 = self.par_dict['SAVE_DIR'] + self.par_dict['LTE_SCENARIO'] + '_' + s + '_' + self.par_dict['N_CELLS'] + 'C' + str(u) + 'U_' + str(i+1) + '.sim' 
+                    commands.append((tmp, tmp2, u))
+
+        return commands
+    
+#------------------------------------------------------------------------------
+    def run_simulations(self):        
+        
+        n_cpu = cpu_count()
+        commands = self.get_parameters()
+        n_scen = len(commands)
+        running = 0
+        finished = 0
+        q = Queue()
+               
+        print '>> You have ' + str(n_scen) + ' simulations to run!'
+        print '>> You´re using ' + self.par_dict['N_CPUs'] + ' of ' + str(n_cpu) + ' CPUs available in this machine!'
+        self.start = datetime.now()   
+        print '>> Starting simulations at ' + str(self.start) + '\n'                         
+            
+        while finished < n_scen:
+            while len(commands):
+                if running < int(self.par_dict['N_CPUs']):
+                    running += 1                   
+                    if len(commands) == 1:                    
+                        p = Process(target=self.trigger_simulation, args=(commands[-1], q,))
+                        commands.pop()
+                        self.counter('\trunning: ', running, 
+                                     '\twaiting: ', len(commands), 
+                                     '\tfinished: ', finished)
+                        p.start()
+                        p.join()
+                    else:
+                        p = Process(target=self.trigger_simulation, args=(commands[-1], q,))
+                        p.start()
+                        commands.pop()
+                else:
+                    if not q.empty():
+                        q.get()
+                        running -= 1
+                        finished += 1                        
+                    time.sleep(1)
+                self.counter('\trunning: ', running, 
+                             '\twaiting: ', len(commands), 
+                             '\tfinished: ', finished)
+                                    
+            if not q.empty():
+                q.get()
+                running -= 1
+                finished += 1
+            time.sleep(1)
+            self.counter('\trunning: ', running, 
+                         '\twaiting: ', len(commands), 
+                         '\tfinished: ', finished)
+                   
+        self.counter('\trunning: ', running, 
+                     '\twaiting: ', len(commands), 
+                     '\tfinished: ', finished)
+        print '\n\n>> The simulations have finished!' 
+
+           
+
+#------------------------------------------------------------------------------
+    def trigger_simulation(self, command, q):
+        
+        output_file = open(command[1], 'w')
+        call([command[0]], shell=True, stdout=output_file)  
+        q.put([1])        
+
+#------------------------------------------------------------------------------
+
+    def compute_results(self):
+        
+        print '\n>> Processing results...'
+        commands = self.get_parameters()
+        self.initialize_lists(commands)
+        self.spawn_processes(commands)
+        
+        self.write_to_file_per_flow()
+        
+        if self.par_dict['RESULTS_PER_SCHEDULER'] == 'yes':                   
+            self.write_to_file_per_scheduler()
+
+
+        
+        if self.par_dict['ERASE_TRACE_FILES'] == 'yes':
+            call(['rm -f ' + self.par_dict['SAVE_DIR'] + '*.sim'], shell=True)
+
+        end = datetime.now()
+        print '\n\n>> done! (at ' + str(end) + ')\tTotal time: ',   (end - self.start)        
+        print '\n>> Check your SAVE DIRECTORY!\n>> Bye!'
+
+                              
+#------------------------------------------------------------------------------
+    def initialize_lists(self, commands):
+
+        self.l_th = []
+        self.l_th_2 = []
+        self.l_th_bearers = []
+        self.l_rx = []
+        self.l_tx = []
+        self.l_delay = []
+                
+        for c in commands:        
+            tmp_th   = []
+            tmp_th_2 = []
+            tmp_fi   = []
+            tmp_rx   = []
+            tmp_tx   = []
+            tmp_delay = []
+            for f in self.flow_list:
+                tmp_fi_2 = []
+                tmp_th.append(0)
+                tmp_th_2.append(0)                
+                tmp_rx.append(0)
+                tmp_tx.append(0)
+                tmp_delay.append(0)
+                for u in range(int(c[2])*(len(self.flow_list))):
+                    tmp_fi_2.append(0)
+                tmp_fi.append(tmp_fi_2)
+            self.l_th.append(tmp_th)
+            self.l_th_2.append(tmp_th_2)
+            self.l_th_bearers.append(tmp_fi)
+            self.l_rx.append(tmp_rx)
+            self.l_tx.append(tmp_tx)
+            self.l_delay.append(tmp_delay)        
+            
+
+#------------------------------------------------------------------------------
+    def spawn_processes(self, commands):
+        
+        n_scen = len(commands)
+        running = 0
+        finished = 0
+        q = Queue()        
+        
+        while finished < n_scen:
+            while len(commands):
+                if running < int(self.par_dict['N_CPUs']):
+                    running += 1                   
+                    if len(commands) == 1:                    
+                        p = Process(target=self.parse_result_file, 
+                                    args=(commands[-1][1], commands[-1][2], len(commands) - 1, q,))
+                        commands.pop()
+                        self.counter('\trunning: ', running, 
+                                     '\twaiting: ', len(commands), 
+                                     '\tfinished: ', finished)
+                        p.start()
+                        p.join()
+                    else:
+                        p = Process(target=self.parse_result_file, 
+                                    args=(commands[-1][1], commands[-1][2], len(commands) - 1, q,))
+                        p.start()
+                        commands.pop()
+                else:
+                    if not q.empty():
+                        cb = q.get()
+                        for k in range(len(cb[1])):
+                            self.l_th[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME_FLOW'])
+                            self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                            
+                            self.l_rx[cb[0]][k] = cb[3][k] 
+                            self.l_tx[cb[0]][k] = cb[4][k]
+                            self.l_delay[cb[0]][k] = cb[5][k]
+                            for j in range(len(cb[2][k])):
+                                self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])                            
+                        running -= 1
+                        finished += 1                        
+                    time.sleep(0.01)
+                self.counter('\trunning: ', running, 
+                             '\twaiting: ', len(commands), 
+                             '\tfinished: ', finished)                                    
+            if not q.empty():
+                cb = q.get()
+                for k in range(len(cb[1])):
+                    self.l_th[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME_FLOW'])
+                    self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                    
+                    self.l_rx[cb[0]][k] = cb[3][k] 
+                    self.l_tx[cb[0]][k] = cb[4][k]
+                    self.l_delay[cb[0]][k] =  cb[5][k]                    
+                    for j in range(len(cb[2][k])):
+                        self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])
+                running -= 1
+                finished += 1
+            time.sleep(0.01)
+            self.counter('\trunning: ', running, 
+                         '\twaiting: ', len(commands), 
+                         '\tfinished: ', finished)                   
+        self.counter('\trunning: ', running, 
+                     '\twaiting: ', len(commands), 
+                     '\tfinished: ', finished)
+        
+#------------------------------------------------------------------------------
+    def parse_result_file(self, file_name, u, i, q):
+        
+        f_data = open(file_name)
+        sum_size_th = []
+        sum_size_fi = []
+        sum_rx = []
+        sum_tx = []
+        sum_delay = []
+        
+        for f in self.flow_list:
+            tmp = []
+            sum_size_th.append(0)
+            sum_rx.append(0)
+            sum_tx.append(0)
+            sum_delay.append(0)
+            for s in range(int(u)*len(self.flow_list)):
+                tmp.append(0)
+            sum_size_fi.append(tmp)            
+            
+        for line in f_data:
+            for f in self.flow_list:
+                if line.startswith('RX ' + f):
+                    tmp = line.split()
+                    sum_size_th[self.flow_list.index(f)] += float(tmp[7]) * 8                         #*8: bytes to bits
+                    sum_size_fi[self.flow_list.index(f)][int(tmp[5])] += float(tmp[7]) * 8
+                    sum_rx[self.flow_list.index(f)] += 1
+                    sum_delay[self.flow_list.index(f)] += float(tmp[13])                    
+                    break
+                elif line.startswith('TX ' + f):
+                    sum_tx[self.flow_list.index(f)] += 1
+                                    
+        q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay])                            
+                              
+#------------------------------------------------------------------------------
+    def write_to_file_per_scheduler(self):
+        
+        for s in self.schedulers_list:
+            f_th = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_aggregate_throughput.dat', 'w' )
+            f_th_user = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_user_throughput.dat', 'w' )
+            f_fi = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_fairness_index.dat', 'w' )
+            f_plr = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_packet_loss_rate.dat', 'w' )
+            f_delay = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_delay.dat', 'w' )
+            f_se = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_spectral_efficiency.dat', 'w' )
+            self.insert_header_flow(f_th, '#AGGREGATE CELL THROUGHPUT (Mbps)\n#USERS')
+            self.insert_header_flow(f_th_user, '#AVERAGE USER THROUGHPUT (Mbps)\n#USERS')            
+            self.insert_header_flow(f_fi, '#FAIRNESS INDEX\n#USERS')
+            self.insert_header_flow(f_plr, '#PACKET LOSS RATE\n#USERS')
+            self.insert_header_flow(f_delay, '#AVERAGE CELL DELAY (s)\n#USERS')
+            self.insert_header_flow(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')            
+            for u in self.users_list:
+                f_th.write(str(u))
+                f_th_user.write(str(u))
+                f_fi.write(str(u))       
+                f_plr.write(str(u))         
+                f_delay.write(str(u))
+                f_se.write(str(u))
+                for f in range(len(self.flow_list)):
+                    tmp_th = []
+                    tmp_th_user = []
+                    tmp_fi = []
+                    tmp_plr = []
+                    tmp_delay = []
+                    tmp_se = []
+                    for i in range(int(self.par_dict['NUM_SIM'])):
+                        tmp_th.append(self.l_th[i][f])
+                        tmp_th_user.append(self.l_th[i][f]/float(u))
+                        try:                       
+                            tmp_plr.append(1 - self.l_rx[i][f]/float(self.l_tx[i][f]))
+                        except ZeroDivisionError:
+                            print "\n\n>> ERROR! I could not find a throughput value. I`m quite sure that your simulation has failed!"
+                            print "\tPlease take a look in .sim files!"
+                            exit()                        
+                        tmp_delay.append(self.l_delay[i][f]/float(self.l_rx[i][f]))
+                        tmp_se.append(self.l_th_2[i][f]/self.bw)         
+                        sum_goodput = 0
+                        sum_sq_goodput = 0         
+                        for k in self.l_th_bearers[i][f]:
+                            sum_goodput += k
+                            sum_sq_goodput += pow(k,2)                                                             
+                        sq_sum_goodput = pow(sum_goodput, 2)
+                        tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[i][f])/len(self.flow_list)) * sum_sq_goodput)))                        
+                    th_mean = round(numpy.mean(tmp_th) * pow(10, -6), self.n_dec)          # transform to Mbps
+                    th_user_mean = round(numpy.mean(tmp_th_user) * pow(10, -6), self.n_dec)          # transform to Mbps                    
+                    fi_mean = round(numpy.mean(tmp_fi), self.n_dec)
+                    plr_mean = round(numpy.mean(tmp_plr), self.n_dec)
+                    delay_mean = round(numpy.mean(tmp_delay), self.n_dec)
+                    se_mean = round(numpy.mean(tmp_se), self.n_dec)
+                    f_th.write('\t' + str(th_mean))
+                    f_th_user.write('\t' + str(th_user_mean))                    
+                    f_fi.write('\t' + str(fi_mean))
+                    f_plr.write('\t' + str(plr_mean))
+                    f_delay.write('\t' + str(delay_mean))
+                    f_se.write('\t' + str(se_mean))
+                f_th.write('\n')
+                f_th_user.write('\n')                
+                f_fi.write('\n')      
+                f_plr.write('\n')
+                f_delay.write('\n')                
+                f_se.write('\n')
+                del self.l_th[0:(int(self.par_dict['NUM_SIM']))]     
+                del self.l_th_2[0:(int(self.par_dict['NUM_SIM']))]     
+                del self.l_th_bearers[0:(int(self.par_dict['NUM_SIM']))]
+                del self.l_rx[0:(int(self.par_dict['NUM_SIM']))]
+                del self.l_tx[0:(int(self.par_dict['NUM_SIM']))]
+                del self.l_delay[0:(int(self.par_dict['NUM_SIM']))]
+            f_th.close()
+            f_th_user.close()            
+            f_fi.close()     
+            f_plr.close()   
+            f_delay.close()               
+            f_se.close()
+
+#------------------------------------------------------------------------------
+    def write_to_file_per_flow(self):
+        
+        for f in range(len(self.flow_list)):
+            f_th = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_aggregate_throughput.dat', 'w' )
+            f_th_user = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_user_throughput.dat', 'w' )            
+            f_fi = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_fairness_index.dat', 'w' )
+            f_plr = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_packet_loss_rate.dat', 'w' )
+            f_delay = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_delay.dat', 'w' )
+            f_se = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_spectral_efficiency.dat', 'w' )            
+            self.insert_header_scheduler(f_th, '#AGREGATE CELL THROUGHPUT (Mbps)\n#USERS')
+            self.insert_header_scheduler(f_th_user, '#AVERAGE USER THROUGHPUT (Mbps)\n#USERS')            
+            self.insert_header_scheduler(f_fi, '#FAIRNESS INDEX\n#USERS')
+            self.insert_header_scheduler(f_plr, '#PACKET LOSS RATE\n#USERS')
+            self.insert_header_scheduler(f_delay, '#AVERAGE CELL DELAY (s)\n#USERS')
+            self.insert_header_scheduler(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')            
+            c = 0   
+            for u in self.users_list:
+                f_th.write(str(u))
+                f_th_user.write(str(u))                
+                f_fi.write(str(u))
+                f_plr.write(str(u))
+                f_delay.write(str(u))
+                f_se.write(str(u))                                
+                for s in range(len(self.schedulers_list)):                
+                    tmp_th = []
+                    tmp_th_user = []                    
+                    tmp_fi = []
+                    tmp_plr = []
+                    tmp_delay = []    
+                    tmp_se = []                        
+                    for i in range(int(self.par_dict['NUM_SIM'])):
+                        h = i+c+(s*len(self.users_list)*int(self.par_dict['NUM_SIM']))
+                        tmp_th.append(self.l_th[h][f])
+                        tmp_th_user.append(self.l_th[h][f]/float(u)) 
+                        try:                       
+                            tmp_plr.append(1 - self.l_rx[h][f]/float(self.l_tx[h][f]))
+                        except ZeroDivisionError:
+                            print "\n\n>> ERROR! I could not find a throughput value. I`m quite sure that your simulation has failed!"
+                            print "\tPlease take a look in .sim files!"
+                            exit()
+                        tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))  
+                        tmp_se.append(self.l_th_2[h][f]/self.bw)       
+                        sum_goodput = 0
+                        sum_sq_goodput = 0
+                        for k in self.l_th_bearers[h][f]:
+                            sum_goodput += k
+                            sum_sq_goodput += pow(k,2)                                                             
+                        sq_sum_goodput = pow(sum_goodput, 2)
+                        tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[h][f])/len(self.flow_list)) * sum_sq_goodput)))                        
+                    th_mean = round(numpy.mean(tmp_th) * pow(10, -6), self.n_dec)                    # transform to Mbps
+                    th_user_mean = round(numpy.mean(tmp_th_user) * pow(10, -6), self.n_dec)          # transform to Mbps                    
+                    fi_mean = round(numpy.mean(tmp_fi), self.n_dec)
+                    plr_mean = round(numpy.mean(tmp_plr), self.n_dec)
+                    delay_mean = round(numpy.mean(tmp_delay), self.n_dec)
+                    se_mean = round(numpy.mean(tmp_se), self.n_dec)
+                    f_th.write('\t' + str(th_mean))
+                    f_th_user.write('\t' + str(th_user_mean))                    
+                    f_fi.write('\t' + str(fi_mean))
+                    f_plr.write('\t' + str(plr_mean))
+                    f_delay.write('\t' + str(delay_mean))
+                    f_se.write('\t' + str(se_mean))                    
+                c+=int(self.par_dict['NUM_SIM'])                    
+                f_th.write('\n')
+                f_th_user.write('\n')                
+                f_fi.write('\n')      
+                f_plr.write('\n')
+                f_delay.write('\n')
+                f_se.write('\n')
+            f_th.close()
+            f_th_user.close()            
+            f_fi.close()
+            f_plr.close()
+            f_delay.close()
+            f_se.close()
+            
+            
+#------------------------------------------------------------------------------        
+    def parse_setup_file(self, file_path):
+        
+        par_dict = {}
+        b = ' '
+        
+        try:
+            f_config = open(file_path)
+        except IOError:
+            print '\n>> PARSE ERROR!! "' + file_path + '" is not a valid file path!'
+            exit ()
+         
+        for line in f_config:
+            tmp = []
+            value = ''
+            #  ignoring comments and blank lines 
+            if not (line.startswith('#') or line.startswith('/') 
+                    or line.startswith(' ') or line.startswith('*') or len(line) == 1):
+                tmp = line.rstrip().split("=")
+                name = tmp[0].rstrip()
+                if len(tmp) > 2:
+                    tmp.pop (0)
+                    for v in tmp:
+                        value += b + v.lstrip()
+                    par_dict[name] = value
+                else:
+                    value = tmp[1].lstrip()
+                    par_dict[name] = value
+                    
+        f_config.close ()
+
+        return par_dict
+    
+#------------------------------------------------------------------------------    
+    
+    def get_users_list(self):
+        tmp = self.par_dict['USERS'].split(',')
+        users_list = []
+        for i in tmp:
+            if i.find(':') > 0:
+                start = int(i.split(':')[0])
+                step = int(i.split(':')[1])
+                end = int(i.split(':')[2])
+                n_steps = ((end - start) / step) + 1
+                for n in range(n_steps):
+                    users_list.append((n * step) + start)
+            else:
+                users_list.append(int(i))
+        return users_list
+                         
+
+#------------------------------------------------------------------------------ 
+    def counter (self, string1, c1, string2, c2, string3, c3):
+        
+       sys.stdout.write('\r' + string1 + ' ' + str(c1) + '  ' + string2 + ' ' + str(c2) + '  ' + string3 + ' ' + str(c3) + ' ')
+       sys.stdout.flush()
+        
+#------------------------------------------------------------------------------
+    def insert_header_flow(self, f, title):
+        
+        tmp = title
+        for i in self.flow_list:
+            tmp += '\t' + i 
+        f.write(tmp + '\n')
+        
+#------------------------------------------------------------------------------
+    def insert_header_scheduler(self, f, title):        
+
+        tmp = title
+        for i in self.schedulers_list:
+            tmp += '\t' + i
+        f.write(tmp + '\n')
+        
+#------------------------------------------------------------------------------
+                
+        
+if __name__ == '__main__':
+    
+    myHelper = LteSimHelper()
+    myHelper.run_simulations()
+    myHelper.compute_results()    
+    
+
+
