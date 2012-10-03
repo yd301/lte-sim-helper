@@ -81,40 +81,44 @@ class LteSimHelper(object):
         self.start = datetime.now()   
         print '>> Starting simulations at ' + str(self.start) + '\n'                         
             
-        while finished < n_scen:
-            while len(commands):
-                if running < int(self.par_dict['N_CPUs']):
-                    running += 1                   
-                    if len(commands) == 1:                    
-                        p = Process(target=self.trigger_simulation, args=(commands[-1], q,))
-                        commands.pop()
-                        self.counter('\trunning: ', running, 
-                                     '\twaiting: ', len(commands), 
-                                     '\tfinished: ', finished)
-                        p.start()
-                        p.join()
+        try:
+            while finished < n_scen:
+                while len(commands):
+                    if running < int(self.par_dict['N_CPUs']):
+                        running += 1                   
+                        if len(commands) == 1:                    
+                            p = Process(target=self.trigger_simulation, args=(commands[-1], q,))
+                            commands.pop()
+                            self.counter('\trunning: ', running, 
+                                         '\twaiting: ', len(commands), 
+                                         '\tfinished: ', finished)
+                            p.start()
+                            p.join()
+                        else:
+                            p = Process(target=self.trigger_simulation, args=(commands[-1], q,))
+                            p.start()
+                            commands.pop()
                     else:
-                        p = Process(target=self.trigger_simulation, args=(commands[-1], q,))
-                        p.start()
-                        commands.pop()
-                else:
-                    if not q.empty():
-                        q.get()
-                        running -= 1
-                        finished += 1                        
-                    time.sleep(1)
+                        if not q.empty():
+                            q.get()
+                            running -= 1
+                            finished += 1                        
+                        time.sleep(1)
+                    self.counter('\trunning: ', running, 
+                                 '\twaiting: ', len(commands), 
+                                 '\tfinished: ', finished)
+                                        
+                if not q.empty():
+                    q.get()
+                    running -= 1
+                    finished += 1
+                time.sleep(1)
                 self.counter('\trunning: ', running, 
                              '\twaiting: ', len(commands), 
                              '\tfinished: ', finished)
-                                    
-            if not q.empty():
-                q.get()
-                running -= 1
-                finished += 1
-            time.sleep(1)
-            self.counter('\trunning: ', running, 
-                         '\twaiting: ', len(commands), 
-                         '\tfinished: ', finished)
+        except KeyboardInterrupt:
+            print '\n\n>> Ctrl+c pressed! Exiting...\n'
+            exit()
                    
         self.counter('\trunning: ', running, 
                      '\twaiting: ', len(commands), 
@@ -196,58 +200,63 @@ class LteSimHelper(object):
         running = 0
         finished = 0
         q = Queue()        
-        
-        while finished < n_scen:
-            while len(commands):
-                if running < int(self.par_dict['N_CPUs']):
-                    running += 1                   
-                    if len(commands) == 1:                    
-                        p = Process(target=self.parse_result_file, 
-                                    args=(commands[-1][1], commands[-1][2], len(commands) - 1, q,))
-                        commands.pop()
-                        self.counter('\trunning: ', running, 
-                                     '\twaiting: ', len(commands), 
-                                     '\tfinished: ', finished)
-                        p.start()
-                        p.join()
+
+        try:        
+            while finished < n_scen:
+                while len(commands):
+                    if running < int(self.par_dict['N_CPUs']):
+                        running += 1                   
+                        if len(commands) == 1:                    
+                            p = Process(target=self.parse_result_file, 
+                                        args=(commands[-1][1], commands[-1][2], len(commands) - 1, q,))
+                            commands.pop()
+                            self.counter('\trunning: ', running, 
+                                         '\twaiting: ', len(commands), 
+                                         '\tfinished: ', finished)
+                            p.start()
+                            p.join()
+                        else:
+                            p = Process(target=self.parse_result_file, 
+                                        args=(commands[-1][1], commands[-1][2], len(commands) - 1, q,))
+                            p.start()
+                            commands.pop()
                     else:
-                        p = Process(target=self.parse_result_file, 
-                                    args=(commands[-1][1], commands[-1][2], len(commands) - 1, q,))
-                        p.start()
-                        commands.pop()
-                else:
-                    if not q.empty():
-                        cb = q.get()
-                        for k in range(len(cb[1])):
-                            self.l_th[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME_FLOW'])
-                            self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                            
-                            self.l_rx[cb[0]][k] = cb[3][k] 
-                            self.l_tx[cb[0]][k] = cb[4][k]
-                            self.l_delay[cb[0]][k] = cb[5][k]
-                            for j in range(len(cb[2][k])):
-                                self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])                            
-                        running -= 1
-                        finished += 1                        
-                    time.sleep(0.01)
+                        if not q.empty():
+                            cb = q.get()
+                            for k in range(len(cb[1])):
+                                self.l_th[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME_FLOW'])
+                                self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                            
+                                self.l_rx[cb[0]][k] = cb[3][k] 
+                                self.l_tx[cb[0]][k] = cb[4][k]
+                                self.l_delay[cb[0]][k] = cb[5][k]
+                                for j in range(len(cb[2][k])):
+                                    self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])                            
+                            running -= 1
+                            finished += 1                        
+                        time.sleep(0.01)
+                    self.counter('\trunning: ', running, 
+                                 '\twaiting: ', len(commands), 
+                                 '\tfinished: ', finished)                                    
+                if not q.empty():
+                    cb = q.get()
+                    for k in range(len(cb[1])):
+                        self.l_th[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME_FLOW'])
+                        self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                    
+                        self.l_rx[cb[0]][k] = cb[3][k] 
+                        self.l_tx[cb[0]][k] = cb[4][k]
+                        self.l_delay[cb[0]][k] =  cb[5][k]                    
+                        for j in range(len(cb[2][k])):
+                            self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])
+                    running -= 1
+                    finished += 1
+                time.sleep(0.01)
                 self.counter('\trunning: ', running, 
                              '\twaiting: ', len(commands), 
-                             '\tfinished: ', finished)                                    
-            if not q.empty():
-                cb = q.get()
-                for k in range(len(cb[1])):
-                    self.l_th[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME_FLOW'])
-                    self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                    
-                    self.l_rx[cb[0]][k] = cb[3][k] 
-                    self.l_tx[cb[0]][k] = cb[4][k]
-                    self.l_delay[cb[0]][k] =  cb[5][k]                    
-                    for j in range(len(cb[2][k])):
-                        self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])
-                running -= 1
-                finished += 1
-            time.sleep(0.01)
-            self.counter('\trunning: ', running, 
-                         '\twaiting: ', len(commands), 
-                         '\tfinished: ', finished)                   
+                             '\tfinished: ', finished)
+        except KeyboardInterrupt:
+            print '\n\n>> Ctrl+c pressed! Exiting...\n'
+            exit()
+                                       
         self.counter('\trunning: ', running, 
                      '\twaiting: ', len(commands), 
                      '\tfinished: ', finished)
