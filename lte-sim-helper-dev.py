@@ -21,7 +21,7 @@ Author: Saulo da Mata <damata.saulo@gmail.com>
 
 from subprocess import call
 from multiprocessing import Process, Queue, cpu_count
-import sys, time, numpy
+import sys, time, numpy, random
 from datetime import timedelta, datetime
 
 
@@ -52,7 +52,7 @@ class LteSimHelper(object):
 #------------------------------------------------------------------------------        
     def get_parameters(self):
         
-        seed = -1
+        seed = random.randint(0, 1000000)
         commands = []
         
         for s in self.schedulers_list:
@@ -63,6 +63,7 @@ class LteSimHelper(object):
                     tmp += s + ' ' + str(seed)
                     tmp2 = self.par_dict['SAVE_DIR'] + self.par_dict['LTE_SCENARIO'] + '_' + s + '_' + self.par_dict['N_CELLS'] + 'C' + str(u) + 'U_' + str(i+1) + '.sim' 
                     commands.append((tmp, tmp2, u))
+                    seed = random.randint(0, 1000000)
 
         return commands
     
@@ -131,7 +132,7 @@ class LteSimHelper(object):
     def trigger_simulation(self, command, q):
         
         output_file = open(command[1], 'w')
-        call([command[0]], shell=True, stdout=output_file)  
+        call([command[0]], shell=True, stdout=output_file)             
         q.put([1])        
 
 #------------------------------------------------------------------------------
