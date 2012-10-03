@@ -77,7 +77,7 @@ class LteSimHelper(object):
         q = Queue()
                
         print '>> You have ' + str(n_scen) + ' simulations to run!'
-        print '>> You´re using ' + self.par_dict['N_CPUs'] + ' of ' + str(n_cpu) + ' CPUs available in this machine!'
+        print '>> You`re using ' + self.par_dict['N_CPUs'] + ' of ' + str(n_cpu) + ' CPUs available in this machine!'
         self.start = datetime.now()   
         print '>> Starting simulations at ' + str(self.start) + '\n'                         
             
@@ -455,12 +455,12 @@ class LteSimHelper(object):
             exit ()
          
         for line in f_config:
-            tmp = []
             value = ''
             #  ignoring comments and blank lines 
-            if not (line.startswith('#') or line.startswith('/') 
-                    or line.startswith(' ') or line.startswith('*') or len(line) == 1):
-                tmp = line.rstrip().split("=")
+            if not (line.startswith('#') or line.startswith(' ') or len(line) == 1):
+                if line.find('#') > 0: tmp = line.split('#')[0]
+                else: tmp = line
+                tmp = tmp.rstrip().split("=")
                 name = tmp[0].rstrip()
                 if len(tmp) > 2:
                     tmp.pop (0)
