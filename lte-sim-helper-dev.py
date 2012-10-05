@@ -23,6 +23,8 @@ from subprocess import call
 from multiprocessing import Process, Queue, cpu_count
 import sys, time, numpy, random
 from datetime import timedelta, datetime
+from copy import deepcopy
+
 
 
 class LteSimHelper(object):
@@ -37,6 +39,9 @@ class LteSimHelper(object):
 
         self.bw = float(self.par_dict['DL_BW']) * pow(10, 6)
         self.n_dec = int(self.par_dict['N_DEC'])
+
+        self.cdf_gran = int(self.par_dict['CDF_GRAN'])        
+        self.cdf_factor = pow(10, len(self.par_dict['CDF_GRAN']) - 1)
                
         self.flow_list = []                               
         if int(self.par_dict['N_VOIP']):
@@ -56,7 +61,7 @@ class LteSimHelper(object):
         commands = []
         
         for s in self.schedulers_list:
-            for u in self.users_list:       
+           for u in self.users_list:       
                 for i in range(int(self.par_dict['NUM_SIM'])):
                     tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
@@ -168,6 +173,7 @@ class LteSimHelper(object):
         self.l_rx = []
         self.l_tx = []
         self.l_delay = []
+        self.l_delay_occur = []
                 
         for c in commands:        
             tmp_th   = []
@@ -176,6 +182,7 @@ class LteSimHelper(object):
             tmp_rx   = []
             tmp_tx   = []
             tmp_delay = []
+            tmp_delay_occur = []
             for f in self.flow_list:
                 tmp_fi_2 = []
                 tmp_th.append(0)
@@ -183,6 +190,7 @@ class LteSimHelper(object):
                 tmp_rx.append(0)
                 tmp_tx.append(0)
                 tmp_delay.append(0)
+                tmp_delay_occur.append(0)
                 for u in range(int(c[2])*(len(self.flow_list))):
                     tmp_fi_2.append(0)
                 tmp_fi.append(tmp_fi_2)
@@ -192,6 +200,7 @@ class LteSimHelper(object):
             self.l_rx.append(tmp_rx)
             self.l_tx.append(tmp_tx)
             self.l_delay.append(tmp_delay)        
+            self.l_delay_occur.append(tmp_delay_occur)
             
 
 #------------------------------------------------------------------------------
@@ -230,6 +239,7 @@ class LteSimHelper(object):
                                 self.l_rx[cb[0]][k] = cb[3][k] 
                                 self.l_tx[cb[0]][k] = cb[4][k]
                                 self.l_delay[cb[0]][k] = cb[5][k]
+                                self.l_delay_occur[cb[0]][k] = deepcopy(cb[6][k])
                                 for j in range(len(cb[2][k])):
                                     self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])                            
                             running -= 1
@@ -245,7 +255,8 @@ class LteSimHelper(object):
                         self.l_th_2[cb[0]][k] = cb[1][k]/float(self.par_dict['SIM_TIME'])                    
                         self.l_rx[cb[0]][k] = cb[3][k] 
                         self.l_tx[cb[0]][k] = cb[4][k]
-                        self.l_delay[cb[0]][k] =  cb[5][k]                    
+                        self.l_delay[cb[0]][k] =  cb[5][k]             
+                        self.l_delay_occur[cb[0]][k] = deepcopy(cb[6][k])
                         for j in range(len(cb[2][k])):
                             self.l_th_bearers[cb[0]][k][j] = cb[2][k][j]/float(self.par_dict['SIM_TIME_FLOW'])
                     running -= 1
@@ -270,7 +281,8 @@ class LteSimHelper(object):
         sum_size_fi = []
         sum_rx = []
         sum_tx = []
-        sum_delay = []
+        sum_delay = []      
+        occur = []
         
         for f in self.flow_list:
             tmp = []
@@ -278,6 +290,10 @@ class LteSimHelper(object):
             sum_rx.append(0)
             sum_tx.append(0)
             sum_delay.append(0)
+            tmp2 = []
+            for j in range(self.cdf_gran):
+                tmp2.append(0)
+            occur.append(tmp2)
             for s in range(int(u)*len(self.flow_list)):
                 tmp.append(0)
             sum_size_fi.append(tmp)            
@@ -289,12 +305,15 @@ class LteSimHelper(object):
                     sum_size_th[self.flow_list.index(f)] += float(tmp[7]) * 8                         #*8: bytes to bits
                     sum_size_fi[self.flow_list.index(f)][int(tmp[5])] += float(tmp[7]) * 8
                     sum_rx[self.flow_list.index(f)] += 1
-                    sum_delay[self.flow_list.index(f)] += float(tmp[13])                    
+                    sum_delay[self.flow_list.index(f)] += float(tmp[13])
+                    for j in range(self.cdf_gran):
+                        if int(numpy.ceil(float(tmp[13])*self.cdf_gran))<=j:
+                            occur[self.flow_list.index(f)][j] += 1
                     break
                 elif line.startswith('TX ' + f):
                     sum_tx[self.flow_list.index(f)] += 1
                                     
-        q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay])                            
+        q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay, occur])                            
                               
 #------------------------------------------------------------------------------
     def write_to_file_per_scheduler(self):
@@ -325,7 +344,7 @@ class LteSimHelper(object):
                     tmp_fi = []
                     tmp_plr = []
                     tmp_delay = []
-                    tmp_se = []
+                    tmp_se = []   
                     for i in range(int(self.par_dict['NUM_SIM'])):
                         tmp_th.append(self.l_th[i][f])
                         tmp_th_user.append(self.l_th[i][f]/float(u))
@@ -336,7 +355,7 @@ class LteSimHelper(object):
                             print "\tPlease take a look in .sim files!"
                             exit()                        
                         tmp_delay.append(self.l_delay[i][f]/float(self.l_rx[i][f]))
-                        tmp_se.append(self.l_th_2[i][f]/self.bw)         
+                        tmp_se.append(self.l_th_2[i][f]/self.bw)
                         sum_goodput = 0
                         sum_sq_goodput = 0         
                         for k in self.l_th_bearers[i][f]:
@@ -361,7 +380,7 @@ class LteSimHelper(object):
                 f_fi.write('\n')      
                 f_plr.write('\n')
                 f_delay.write('\n')                
-                f_se.write('\n')
+                f_se.write('\n')                  
                 del self.l_th[0:(int(self.par_dict['NUM_SIM']))]     
                 del self.l_th_2[0:(int(self.par_dict['NUM_SIM']))]     
                 del self.l_th_bearers[0:(int(self.par_dict['NUM_SIM']))]
@@ -393,6 +412,8 @@ class LteSimHelper(object):
             self.insert_header_scheduler(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')            
             c = 0   
             for u in self.users_list:
+                f_cdf = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_CDF_' + str(u) + '.dat', 'w' )
+                self.insert_header_scheduler(f_cdf, '#CDF ' + str(u) + ' Users\n#Delay')                
                 f_th.write(str(u))
                 f_th_user.write(str(u))                
                 f_fi.write(str(u))
@@ -405,7 +426,7 @@ class LteSimHelper(object):
                     tmp_fi = []
                     tmp_plr = []
                     tmp_delay = []    
-                    tmp_se = []                        
+                    tmp_se = []                     
                     for i in range(int(self.par_dict['NUM_SIM'])):
                         h = i+c+(s*len(self.users_list)*int(self.par_dict['NUM_SIM']))
                         tmp_th.append(self.l_th[h][f])
@@ -417,7 +438,7 @@ class LteSimHelper(object):
                             print "\tPlease take a look in .sim files!"
                             exit()
                         tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))  
-                        tmp_se.append(self.l_th_2[h][f]/self.bw)       
+                        tmp_se.append(self.l_th_2[h][f]/self.bw)      
                         sum_goodput = 0
                         sum_sq_goodput = 0
                         for k in self.l_th_bearers[h][f]:
@@ -436,14 +457,27 @@ class LteSimHelper(object):
                     f_fi.write('\t' + str(fi_mean))
                     f_plr.write('\t' + str(plr_mean))
                     f_delay.write('\t' + str(delay_mean))
-                    f_se.write('\t' + str(se_mean))                    
+                    f_se.write('\t' + str(se_mean))
+                                        
+                for w in range(self.cdf_gran):
+                    f_cdf.write(str(w/float(self.cdf_gran)))
+                    for s in range(len(self.schedulers_list)):
+                        tmp_cdf_2 = []                      
+                        for i in range(int(self.par_dict['NUM_SIM'])):
+                            h = i+c+(s*len(self.users_list)*int(self.par_dict['NUM_SIM']))
+                            tmp_cdf_2.append(self.l_delay_occur[h][f][w]/float(self.l_rx[h][f]))
+                        cdf_mean = round(numpy.mean(tmp_cdf_2), self.n_dec)
+                        f_cdf.write('\t' + str(cdf_mean))
+                    f_cdf.write('\n')
+                f_cdf.close()
+                        
                 c+=int(self.par_dict['NUM_SIM'])                    
                 f_th.write('\n')
                 f_th_user.write('\n')                
                 f_fi.write('\n')      
                 f_plr.write('\n')
                 f_delay.write('\n')
-                f_se.write('\n')
+                f_se.write('\n')                        
             f_th.close()
             f_th_user.close()            
             f_fi.close()
@@ -451,7 +485,7 @@ class LteSimHelper(object):
             f_delay.close()
             f_se.close()
             
-            
+
 #------------------------------------------------------------------------------        
     def parse_setup_file(self, file_path):
         
