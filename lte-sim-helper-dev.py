@@ -60,8 +60,8 @@ class LteSimHelper(object):
         seed = random.randint(0, 1000000)
         commands = []
         
-        for s in self.schedulers_list:
-           for u in self.users_list:       
+        for u in self.users_list:
+            for s in self.schedulers_list:       
                 for i in range(int(self.par_dict['NUM_SIM'])):
                     tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
@@ -150,12 +150,7 @@ class LteSimHelper(object):
         self.spawn_processes(commands)
         
         self.write_to_file_per_flow()
-        
-        if self.par_dict['RESULTS_PER_SCHEDULER'] == 'yes':                   
-            self.write_to_file_per_scheduler()
-
-
-        
+               
         if self.par_dict['ERASE_TRACE_FILES'] == 'yes':
             call(['rm -f ' + self.par_dict['SAVE_DIR'] + '*.sim'], shell=True)
 
@@ -316,85 +311,6 @@ class LteSimHelper(object):
         q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay, occur])                            
                               
 #------------------------------------------------------------------------------
-    def write_to_file_per_scheduler(self):
-        
-        for s in self.schedulers_list:
-            f_th = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_aggregate_throughput.dat', 'w' )
-            f_th_user = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_user_throughput.dat', 'w' )
-            f_fi = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_fairness_index.dat', 'w' )
-            f_plr = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_packet_loss_rate.dat', 'w' )
-            f_delay = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_delay.dat', 'w' )
-            f_se = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_spectral_efficiency.dat', 'w' )
-            self.insert_header_flow(f_th, '#AGGREGATE CELL THROUGHPUT (Mbps)\n#USERS')
-            self.insert_header_flow(f_th_user, '#AVERAGE USER THROUGHPUT (Mbps)\n#USERS')            
-            self.insert_header_flow(f_fi, '#FAIRNESS INDEX\n#USERS')
-            self.insert_header_flow(f_plr, '#PACKET LOSS RATE\n#USERS')
-            self.insert_header_flow(f_delay, '#AVERAGE CELL DELAY (s)\n#USERS')
-            self.insert_header_flow(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')            
-            for u in self.users_list:
-                f_th.write(str(u))
-                f_th_user.write(str(u))
-                f_fi.write(str(u))       
-                f_plr.write(str(u))         
-                f_delay.write(str(u))
-                f_se.write(str(u))
-                for f in range(len(self.flow_list)):
-                    tmp_th = []
-                    tmp_th_user = []
-                    tmp_fi = []
-                    tmp_plr = []
-                    tmp_delay = []
-                    tmp_se = []   
-                    for i in range(int(self.par_dict['NUM_SIM'])):
-                        tmp_th.append(self.l_th[i][f])
-                        tmp_th_user.append(self.l_th[i][f]/float(u))
-                        try:                       
-                            tmp_plr.append(1 - self.l_rx[i][f]/float(self.l_tx[i][f]))
-                        except ZeroDivisionError:
-                            print "\n\n>> ERROR! I could not find a throughput value. I`m quite sure that your simulation has failed!"
-                            print "\tPlease take a look in .sim files!"
-                            exit()                        
-                        tmp_delay.append(self.l_delay[i][f]/float(self.l_rx[i][f]))
-                        tmp_se.append(self.l_th_2[i][f]/self.bw)
-                        sum_goodput = 0
-                        sum_sq_goodput = 0         
-                        for k in self.l_th_bearers[i][f]:
-                            sum_goodput += k
-                            sum_sq_goodput += pow(k,2)                                                             
-                        sq_sum_goodput = pow(sum_goodput, 2)
-                        tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[i][f])/len(self.flow_list)) * sum_sq_goodput)))                        
-                    th_mean = round(numpy.mean(tmp_th) * pow(10, -6), self.n_dec)          # transform to Mbps
-                    th_user_mean = round(numpy.mean(tmp_th_user) * pow(10, -6), self.n_dec)          # transform to Mbps                    
-                    fi_mean = round(numpy.mean(tmp_fi), self.n_dec)
-                    plr_mean = round(numpy.mean(tmp_plr), self.n_dec)
-                    delay_mean = round(numpy.mean(tmp_delay), self.n_dec)
-                    se_mean = round(numpy.mean(tmp_se), self.n_dec)
-                    f_th.write('\t' + str(th_mean))
-                    f_th_user.write('\t' + str(th_user_mean))                    
-                    f_fi.write('\t' + str(fi_mean))
-                    f_plr.write('\t' + str(plr_mean))
-                    f_delay.write('\t' + str(delay_mean))
-                    f_se.write('\t' + str(se_mean))
-                f_th.write('\n')
-                f_th_user.write('\n')                
-                f_fi.write('\n')      
-                f_plr.write('\n')
-                f_delay.write('\n')                
-                f_se.write('\n')                  
-                del self.l_th[0:(int(self.par_dict['NUM_SIM']))]     
-                del self.l_th_2[0:(int(self.par_dict['NUM_SIM']))]     
-                del self.l_th_bearers[0:(int(self.par_dict['NUM_SIM']))]
-                del self.l_rx[0:(int(self.par_dict['NUM_SIM']))]
-                del self.l_tx[0:(int(self.par_dict['NUM_SIM']))]
-                del self.l_delay[0:(int(self.par_dict['NUM_SIM']))]
-            f_th.close()
-            f_th_user.close()            
-            f_fi.close()     
-            f_plr.close()   
-            f_delay.close()               
-            f_se.close()
-
-#------------------------------------------------------------------------------
     def write_to_file_per_flow(self):
         
         for f in range(len(self.flow_list)):
@@ -437,7 +353,7 @@ class LteSimHelper(object):
                             print "\n\n>> ERROR! I could not find a throughput value. I`m quite sure that your simulation has failed!"
                             print "\tPlease take a look in .sim files!"
                             exit()
-                        tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))  
+                        tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))
                         tmp_se.append(self.l_th_2[h][f]/self.bw)      
                         sum_goodput = 0
                         sum_sq_goodput = 0
