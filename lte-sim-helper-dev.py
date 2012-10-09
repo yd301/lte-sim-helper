@@ -353,7 +353,10 @@ class LteSimHelper(object):
                             print "\n\n>> ERROR! I could not find a throughput value. I`m quite sure that your simulation has failed!"
                             print "\tPlease take a look in .sim files!"
                             exit()
-                        tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))
+                        try:
+                            tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))
+                        except ZeroDivisionError:
+                            tmp_delay.append(0)    
                         tmp_se.append(self.l_th_2[h][f]/self.bw)      
                         sum_goodput = 0
                         sum_sq_goodput = 0
@@ -361,12 +364,16 @@ class LteSimHelper(object):
                             sum_goodput += k
                             sum_sq_goodput += pow(k,2)                                                             
                         sq_sum_goodput = pow(sum_goodput, 2)
-                        tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[h][f])/len(self.flow_list)) * sum_sq_goodput)))                        
+                        try:
+                            tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[h][f])/len(self.flow_list)) * sum_sq_goodput)))
+                        except ZeroDivisionError:
+                            tmp_fi.append(0)                            
                     th_mean = round(numpy.mean(tmp_th) * pow(10, -6), self.n_dec)                    # transform to Mbps
                     th_user_mean = round(numpy.mean(tmp_th_user) * pow(10, -6), self.n_dec)          # transform to Mbps                    
                     fi_mean = round(numpy.mean(tmp_fi), self.n_dec)
                     plr_mean = round(numpy.mean(tmp_plr), self.n_dec)
                     delay_mean = round(numpy.mean(tmp_delay), self.n_dec)
+                    if delay_mean == 0.0: delay_mean = 'INFINITE'
                     se_mean = round(numpy.mean(tmp_se), self.n_dec)
                     f_th.write('\t' + str(th_mean))
                     f_th_user.write('\t' + str(th_user_mean))                    
@@ -381,7 +388,10 @@ class LteSimHelper(object):
                         tmp_cdf_2 = []                      
                         for i in range(int(self.par_dict['NUM_SIM'])):
                             h = i+c+(s*len(self.users_list)*int(self.par_dict['NUM_SIM']))
-                            tmp_cdf_2.append(self.l_delay_occur[h][f][w]/float(self.l_rx[h][f]))
+                            try:
+                                tmp_cdf_2.append(self.l_delay_occur[h][f][w]/float(self.l_rx[h][f]))
+                            except ZeroDivisionError:
+                                tmp_cdf_2.append(0)
                         cdf_mean = round(numpy.mean(tmp_cdf_2), self.n_dec)
                         f_cdf.write('\t' + str(cdf_mean))
                     f_cdf.write('\n')
@@ -459,22 +469,15 @@ class LteSimHelper(object):
        sys.stdout.write('\r' + string1 + ' ' + str(c1) + '  ' + string2 + ' ' + str(c2) + '  ' + string3 + ' ' + str(c3) + ' ')
        sys.stdout.flush()
         
-#------------------------------------------------------------------------------
-    def insert_header_flow(self, f, title):
-        
-        tmp = title
-        for i in self.flow_list:
-            tmp += '\t' + i 
-        f.write(tmp + '\n')
-        
-#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------       
     def insert_header_scheduler(self, f, title):        
 
         tmp = title
         for i in self.schedulers_list:
             tmp += '\t' + i
-        f.write(tmp + '\n')
+        f.write(tmp + '\n')        
         
+       
 #------------------------------------------------------------------------------
                 
         
