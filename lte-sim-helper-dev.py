@@ -318,19 +318,21 @@ class LteSimHelper(object):
 #------------------------------------------------------------------------------
     def write_to_file_per_flow(self):
         
+        l_se = []
+        f_se = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_spectral_efficiency.dat', 'w' )
+        self.insert_header_scheduler(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')
+        
         for f in range(len(self.flow_list)):
             f_th = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_aggregate_throughput.dat', 'w' )
             f_th_user = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_user_throughput.dat', 'w' )            
             f_fi = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_fairness_index.dat', 'w' )
             f_plr = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_packet_loss_rate.dat', 'w' )
-            f_delay = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_delay.dat', 'w' )
-            f_se = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_spectral_efficiency.dat', 'w' )            
-            self.insert_header_scheduler(f_th, '#AGREGATE CELL THROUGHPUT (Mbps)\n#USERS')
+            f_delay = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_delay.dat', 'w' )          
+            self.insert_header_scheduler(f_th, '#AGGREGATE CELL THROUGHPUT (Mbps)\n#USERS')
             self.insert_header_scheduler(f_th_user, '#AVERAGE USER THROUGHPUT (Mbps)\n#USERS')            
             self.insert_header_scheduler(f_fi, '#FAIRNESS INDEX\n#USERS')
             self.insert_header_scheduler(f_plr, '#PACKET LOSS RATE\n#USERS')
             self.insert_header_scheduler(f_delay, '#AVERAGE CELL DELAY (s)\n#USERS')
-            self.insert_header_scheduler(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')            
             c = 0   
             for u in self.users_list:
                 f_cdf = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_CDF_' + str(u) + '.dat', 'w' )
@@ -339,8 +341,7 @@ class LteSimHelper(object):
                 f_th_user.write(str(u))                
                 f_fi.write(str(u))
                 f_plr.write(str(u))
-                f_delay.write(str(u))
-                f_se.write(str(u))                                
+                f_delay.write(str(u))                          
                 for s in range(len(self.schedulers_list)):                
                     tmp_th = []
                     tmp_th_user = []                    
@@ -362,7 +363,7 @@ class LteSimHelper(object):
                             tmp_delay.append(self.l_delay[h][f]/float(self.l_rx[h][f]))
                         except ZeroDivisionError:
                             tmp_delay.append(0)    
-                        tmp_se.append(self.l_th_2[h][f]/self.bw)      
+                        tmp_se.append(self.l_th_2[h][f])      
                         sum_goodput = 0
                         sum_sq_goodput = 0
                         for k in self.l_th_bearers[h][f]:
@@ -379,13 +380,12 @@ class LteSimHelper(object):
                     plr_mean = round(numpy.mean(tmp_plr), self.n_dec)
                     delay_mean = round(numpy.mean(tmp_delay), self.n_dec)
                     if delay_mean == 0.0: delay_mean = 'INFINITE'
-                    se_mean = round(numpy.mean(tmp_se), self.n_dec)
+                    l_se.append((str(u), numpy.mean(tmp_se)))
                     f_th.write('\t' + str(th_mean))
                     f_th_user.write('\t' + str(th_user_mean))                    
                     f_fi.write('\t' + str(fi_mean))
                     f_plr.write('\t' + str(plr_mean))
                     f_delay.write('\t' + str(delay_mean))
-                    f_se.write('\t' + str(se_mean))
                                         
                 for w in range(self.cdf_gran):
                     f_cdf.write(str(w/float(self.cdf_gran)))
@@ -407,15 +407,26 @@ class LteSimHelper(object):
                 f_th_user.write('\n')                
                 f_fi.write('\n')      
                 f_plr.write('\n')
-                f_delay.write('\n')
-                f_se.write('\n')                        
+                f_delay.write('\n')                      
             f_th.close()
             f_th_user.close()            
             f_fi.close()
             f_plr.close()
             f_delay.close()
-            f_se.close()
-            
+                  
+        x = 0
+        for i in range(len(self.users_list)):
+            f_se.write(l_se[i*len(self.schedulers_list)*len(self.flow_list)][0])
+            for s in range(len(self.schedulers_list)):
+                tmp = []
+                y = 0
+                for f in range(len(self.flow_list)):
+                        tmp.append(l_se[f+y+x][1])
+                        y+= len(self.flow_list)
+                x+=1
+                f_se.write('\t' + str(round(numpy.sum(tmp)/self.bw, self.n_dec)))
+            f_se.write('\n')
+        f_se.close()
 
 #------------------------------------------------------------------------------        
     def parse_setup_file(self, file_path):
