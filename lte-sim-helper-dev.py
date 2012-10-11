@@ -42,6 +42,8 @@ class LteSimHelper(object):
 
         self.cdf_gran = int(self.par_dict['CDF_GRAN'])        
         self.cdf_factor = pow(10, len(self.par_dict['CDF_GRAN']) - 1)
+        
+        self.start = datetime.now() 
                
         self.flow_list = []                               
         if int(self.par_dict['N_VOIP']):
@@ -60,8 +62,8 @@ class LteSimHelper(object):
         seed = random.randint(0, 1000000)
         commands = []
         
-        for u in self.users_list:
-            for s in self.schedulers_list:       
+        for s in self.schedulers_list:
+            for u in self.users_list:      
                 for i in range(int(self.par_dict['NUM_SIM'])):
                     tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
