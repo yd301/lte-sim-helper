@@ -59,18 +59,21 @@ class LteSimHelper(object):
 #------------------------------------------------------------------------------        
     def get_parameters(self):
         
-        seed = random.randint(0, 1000000)
+           
         commands = []
         
         for s in self.schedulers_list:
             for u in self.users_list:      
                 for i in range(int(self.par_dict['NUM_SIM'])):
+                    if self.par_dict['SEED'] == 'RANDOM':
+                        seed = random.randint(0, 1000000)
+                    else:
+                        seed = i+1
                     tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
                     tmp += s + ' ' + str(seed)
                     tmp2 = self.par_dict['SAVE_DIR'] + self.par_dict['LTE_SCENARIO'] + '_' + s + '_' + self.par_dict['N_CELLS'] + 'C' + str(u) + 'U_' + str(i+1) + '.sim' 
                     commands.append((tmp, tmp2, u))
-                    seed = random.randint(0, 1000000)
 
         return commands
     
