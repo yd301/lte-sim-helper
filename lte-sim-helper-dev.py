@@ -44,16 +44,24 @@ class LteSimHelper(object):
         self.cdf_factor = pow(10, len(self.par_dict['CDF_GRAN']) - 1)
         
         self.start = datetime.now() 
+
+        call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'sim'], shell=True)
+        call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'dat'], shell=True)
                
         self.flow_list = []                               
         if int(self.par_dict['N_VOIP']):
             self.flow_list.append('VOIP')
+            call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'dat/' + 'VOIP'], shell=True)
         
         if int(self.par_dict['N_VIDEO']):
             self.flow_list.append('VIDEO')
+            call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'dat/' + 'VIDEO'], shell=True)            
         
         if int(self.par_dict['N_BE']):
             self.flow_list.append('INF_BUF')
+            call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'dat/' + 'INF_BUF'], shell=True)            
+            
+            
         
        
 #------------------------------------------------------------------------------        
@@ -72,7 +80,7 @@ class LteSimHelper(object):
                     tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
                     tmp += s + ' ' + str(seed)
-                    tmp2 = self.par_dict['SAVE_DIR'] + self.par_dict['LTE_SCENARIO'] + '_' + s + '_' + self.par_dict['N_CELLS'] + 'C' + str(u) + 'U_' + str(i+1) + '.sim' 
+                    tmp2 = self.par_dict['SAVE_DIR'] + 'sim/'+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_' + self.par_dict['N_CELLS'] + 'C' + str(u) + 'U_' + str(i+1) + '.sim' 
                     commands.append((tmp, tmp2, u))
 
         return commands
@@ -136,7 +144,6 @@ class LteSimHelper(object):
                      '\tfinished: ', finished)
         print '\n\n>> The simulations have finished!' 
 
-           
 
 #------------------------------------------------------------------------------
     def trigger_simulation(self, command, q):
@@ -157,7 +164,8 @@ class LteSimHelper(object):
         self.write_to_file_per_flow()
                
         if self.par_dict['ERASE_TRACE_FILES'] == 'yes':
-            call(['rm -f ' + self.par_dict['SAVE_DIR'] + '*.sim'], shell=True)
+            call(['rm -rf ' + self.par_dict['SAVE_DIR'] + 'sim'], shell=True)
+
 
         end = datetime.now()
         print '\n\n>> done! (at ' + str(end) + ')\tTotal time: ',   (end - self.start)        
@@ -319,16 +327,16 @@ class LteSimHelper(object):
     def write_to_file_per_flow(self):
         
         l_se = []
-        f_se = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_spectral_efficiency.dat', 'w' )
+        f_se = open(self.par_dict['SAVE_DIR'] + 'dat/' + self.par_dict['LTE_SCENARIO'] + '_spectral_efficiency.dat', 'w' )
         self.insert_header_scheduler(f_se, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')
         
         for f in range(len(self.flow_list)):
-            f_th = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_aggregate_throughput.dat', 'w' )
-            f_th_user = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_user_throughput.dat', 'w' )            
-            f_fi = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_fairness_index.dat', 'w' )
-            f_plr = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_packet_loss_rate.dat', 'w' )
-            f_delay = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_delay.dat', 'w' )  
-            f_se_2 = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_spectral_efficiency.dat', 'w' )        
+            f_th = open(self.par_dict['SAVE_DIR']+ 'dat/' + self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_aggregate_throughput.dat', 'w' )
+            f_th_user = open(self.par_dict['SAVE_DIR']+ 'dat/'+ self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_user_throughput.dat', 'w' )            
+            f_fi = open(self.par_dict['SAVE_DIR']+ 'dat/'+ self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_fairness_index.dat', 'w' )
+            f_plr = open(self.par_dict['SAVE_DIR']+ 'dat/'+ self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_packet_loss_rate.dat', 'w' )
+            f_delay = open(self.par_dict['SAVE_DIR']+ 'dat/'+ self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_delay.dat', 'w' )  
+            f_se_2 = open(self.par_dict['SAVE_DIR']+ 'dat/'+ self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_spectral_efficiency.dat', 'w' )        
             self.insert_header_scheduler(f_th, '#AGGREGATE CELL THROUGHPUT (Mbps)\n#USERS')
             self.insert_header_scheduler(f_th_user, '#AVERAGE USER THROUGHPUT (Mbps)\n#USERS')            
             self.insert_header_scheduler(f_fi, '#FAIRNESS INDEX\n#USERS')
@@ -337,7 +345,7 @@ class LteSimHelper(object):
             self.insert_header_scheduler(f_se_2, '#SPECTRAL EFFICIENCY (bits/s/Hz)\n#USERS')            
             c = 0   
             for u in self.users_list:
-                f_cdf = open(self.par_dict['SAVE_DIR']+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_CDF_' + str(u) + '.dat', 'w' )
+                f_cdf = open(self.par_dict['SAVE_DIR']+ 'dat/'+ self.flow_list[f] +'/'+ self.par_dict['LTE_SCENARIO'] + '_' + self.flow_list[f] + '_CDF_' + str(u) + '.dat', 'w' )
                 self.insert_header_scheduler(f_cdf, '#CDF ' + str(u) + ' Users\n#Delay')                
                 f_th.write(str(u))
                 f_th_user.write(str(u))                
@@ -507,7 +515,7 @@ class LteSimHelper(object):
 if __name__ == '__main__':
     
     myHelper = LteSimHelper()
-    #myHelper.run_simulations()
+    myHelper.run_simulations()
     myHelper.compute_results()    
     
 
