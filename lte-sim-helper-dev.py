@@ -21,7 +21,7 @@ Author: Saulo da Mata <damata.saulo@gmail.com>
 
 from subprocess import call
 from multiprocessing import Process, Queue, cpu_count
-import sys, time, numpy, random
+import sys, time, numpy, random, os
 from datetime import timedelta, datetime
 from copy import deepcopy
 
@@ -35,6 +35,8 @@ class LteSimHelper(object):
         self.par_dict = self.parse_setup_file('setup-dev.cfg')
         self.users_list = self.get_users_list()
         
+        self.config_path = os.getcwd() + '/setup-dev.cfg'
+        
         self.schedulers_list = self.par_dict['SCHEDULERS'].split()      
 
         self.bw = float(self.par_dict['DL_BW']) * pow(10, 6)
@@ -44,7 +46,15 @@ class LteSimHelper(object):
         self.cdf_factor = pow(10, len(self.par_dict['CDF_GRAN']) - 1)
         
         self.start = datetime.now() 
-
+        
+        if self.par_dict['CELL_MODE'] == 'SINGLE':
+            self.cell_factor = 1
+        elif self.par_dict['CELL_MODE'] == 'MULTI':
+            self.cell_factor = int(self.par_dict['N_CELLS'])
+        else:
+            print "\n\n>> ERROR! CELL_MODE: '" +  self.par_dict['CELL_MODE'] + "' not supported!"
+            exit()
+            
         call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'sim'], shell=True)
         call(['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'dat'], shell=True)
                
@@ -79,7 +89,8 @@ class LteSimHelper(object):
                         seed = i+1
                     tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str(u) + ' '
-                    tmp += s + ' ' + str(seed)
+                    tmp += s + ' ' + str(seed) + ' '
+                    tmp += self.config_path
                     tmp2 = self.par_dict['SAVE_DIR'] + 'sim/'+ self.par_dict['LTE_SCENARIO'] + '_' + s + '_' + self.par_dict['N_CELLS'] + 'C' + str(u) + 'U_' + str(i+1) + '.sim' 
                     commands.append((tmp, tmp2, u))
 
@@ -161,7 +172,7 @@ class LteSimHelper(object):
         self.initialize_lists(commands)
         self.spawn_processes(commands)
         
-        self.write_to_file_per_flow()
+        self.write_to_file()
                
         if self.par_dict['ERASE_TRACE_FILES'] == 'yes':
             call(['rm -rf ' + self.par_dict['SAVE_DIR'] + 'sim'], shell=True)
@@ -199,7 +210,7 @@ class LteSimHelper(object):
                 tmp_tx.append(0)
                 tmp_delay.append(0)
                 tmp_delay_occur.append(0)
-                for u in range(int(c[2])*(len(self.flow_list))):
+                for u in range(int(c[2])*self.cell_factor):
                     tmp_fi_2.append(0)
                 tmp_fi.append(tmp_fi_2)
             self.l_th.append(tmp_th)
@@ -292,6 +303,8 @@ class LteSimHelper(object):
         sum_delay = []      
         occur = []
         
+        
+        
         for f in self.flow_list:
             tmp = []
             sum_size_th.append(0)
@@ -302,7 +315,7 @@ class LteSimHelper(object):
             for j in range(self.cdf_gran):
                 tmp2.append(0)
             occur.append(tmp2)
-            for s in range(int(u)*len(self.flow_list)):
+            for s in range(int(u)*self.cell_factor*len(self.flow_list)):
                 tmp.append(0)
             sum_size_fi.append(tmp)            
             
@@ -320,11 +333,16 @@ class LteSimHelper(object):
                     break
                 elif line.startswith('TX ' + f):
                     sum_tx[self.flow_list.index(f)] += 1
-                                    
-        q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay, occur])                            
+                                
+        sum_size_fi_no_0 = []
+        for w in range(len(self.flow_list)):
+            sum_size_fi_no_0.append(filter(lambda a: a != 0, sum_size_fi[w]))
+        
+        q.put([i, sum_size_th, sum_size_fi_no_0, sum_rx, sum_tx, sum_delay, occur])
+        #q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay, occur])                            
                               
 #------------------------------------------------------------------------------
-    def write_to_file_per_flow(self):
+    def write_to_file(self):
         
         l_se = []
         f_se = open(self.par_dict['SAVE_DIR'] + 'dat/' + self.par_dict['LTE_SCENARIO'] + '_spectral_efficiency.dat', 'w' )
@@ -382,7 +400,10 @@ class LteSimHelper(object):
                             sum_sq_goodput += pow(k,2)                                                             
                         sq_sum_goodput = pow(sum_goodput, 2)
                         try:
-                            tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[h][f])/len(self.flow_list)) * sum_sq_goodput)))
+                            #print self.l_th_bearers[h][f]
+                            #tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[h][f])/(len(self.flow_list)*self.cell_factor)) * sum_sq_goodput)))
+                            tmp_fi.append(sq_sum_goodput/float(len(self.l_th_bearers[h][f]) * sum_sq_goodput))
+                            #print tmp_fi
                         except ZeroDivisionError:
                             tmp_fi.append(0)                            
                     th_mean = round(numpy.mean(tmp_th) * pow(10, -6), self.n_dec)                    # transform to Mbps
@@ -507,7 +528,11 @@ class LteSimHelper(object):
         for i in self.schedulers_list:
             tmp += '\t' + i
         f.write(tmp + '\n')        
-        
+
+
+#------------------------------------------------------------------------------
+    def plot(self):
+        print '>> Ploting...'        
        
 #------------------------------------------------------------------------------
                 

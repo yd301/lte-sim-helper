@@ -1,0 +1,25 @@
+   LTE-Sim Helper RELEASE NOTES
+=========================
+
+This file contains LTE-Sim Helper release notes.
+
+Release 0.7
+===========
+
+Availability
+------------
+This release is available in: http://code.google.com/p/lte-sim-helper/
+
+
+Supported platforms
+-------------------
+tested on
+       - Linux amd64 Ubuntu 12.04 with g++-4.6 and python 2.7
+
+New user-visible features
+-------------------------
+  - Added support to Multi Cell scenarios.
+  - The default scenarios SingleCellWithInterference and MultiCell were re-written to read the parameters from a configuration file.
+  - Now the user doesn`t have to indicate the path to config.cfg anymore.
+
+
