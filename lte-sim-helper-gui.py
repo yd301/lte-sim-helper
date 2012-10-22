@@ -22,69 +22,164 @@ Author: Saulo da Mata <damata.saulo@gmail.com>
 
 from gi.repository import Gtk, Gdk
 from multiprocessing import cpu_count
+from copy import deepcopy
 
 
-class LteSimHelperGui(Gtk.Window):
+class LteSimHelperGui( Gtk.Window ):
     
-    def __init__(self):
+    def __init__( self ):
         
         self.builder = Gtk.Builder()
-        self.builder.add_from_file( 'lte-sim-helper-gui.glade' )
-        
-        
+        self.builder.add_from_file( 'lte-sim-helper-gui.glade' )      
 
         self.window = self.builder.get_object( 'main_window' )
         
         self.create_cpu_cbx()
-        self.create_schedulers_grid()
+        self.main_sched_grid, self.main_sched_chkbox = self.create_schedulers_grid( 'sched_align' )
+        self.dlg_sched_grid, self.dlg_sched_chkbox = self.create_schedulers_grid( 'dlg_sched_align' )
 
-        self.builder.connect_signals(self)
+        self.add_sched_dlg = self.builder.get_object( 'add_sched_dlg' )
+        self.rm_sched_dlg = self.builder.get_object( 'rm_sched_dlg' )
+        self.new_sched_ety = self.builder.get_object( 'new_sched_ety' )
+        self.no_add_dlg = self.builder.get_object( 'no_add_dlg' )
+
+        self.builder.connect_signals( self )
         
-            
-    def create_cpu_cbx(self):
-        cpu_store = Gtk.ListStore(int)
+#------------------------------------------------------------------------------            
+    def create_cpu_cbx( self ):
+        cpu_store = Gtk.ListStore( int )
         
         l_cpus = []
-        for i in range(cpu_count()):
-            l_cpus.append(i+1)
+        for i in range( cpu_count() ):
+            l_cpus.append( i + 1 )
             
         for cpu in l_cpus:
-            cpu_store.append([cpu])
+            cpu_store.append( [cpu] )
             
-        cpu_cbx = self.builder.get_object('cpu_cbx')
-        cpu_cbx.set_model(cpu_store)
+        cpu_cbx = self.builder.get_object( 'cpu_cbx' )
+        cpu_cbx.set_model( cpu_store )
         cpu_renderer_text = Gtk.CellRendererText()
-        cpu_cbx.pack_start(cpu_renderer_text, True)
-        cpu_cbx.add_attribute(cpu_renderer_text, "text", 0)
-        
-    def create_schedulers_grid(self):
-#        sched_align = self.builder.get_object('sched_align')
-#        sched_grid = Gtk.Grid()
-#        sched_align.add(sched_grid)
-        sched_par = self.builder.get_object('sim_par_box')
-        sched_grid = Gtk.Grid()
-        sched_par.pack_end(sched_grid, False, False, 0)
-        
-        sched_chkbtn1 = Gtk.CheckButton("PF")
-        sched_chkbtn2 = Gtk.CheckButton("MT")
-        
-        sched_grid.attach(sched_chkbtn1, 1, 0, 2, 1)
-        #sched_grid.add(sched_chkbtn2)
-        
-            
+        cpu_cbx.pack_start( cpu_renderer_text, True )
+        cpu_cbx.add_attribute( cpu_renderer_text, "text", 0 )
 
-   
-    def on_cpu_cbx_changed(self, widget, data=None):
+#------------------------------------------------------------------------------        
+    def create_schedulers_grid( self, align ):
+        sched_align = self.builder.get_object( align )
+        sched_grid = Gtk.Grid()
+        sched_align.add( sched_grid )
+        
+        f = open( 'schedulers.cfg' )
+        
+        l_sched_chkbtn = []
+
+        for line in f:
+            if not ( line == ' ' or len( line ) == 1 ):
+                l_sched_chkbtn.append( ( line.rstrip(), Gtk.CheckButton( line.rstrip() ) ) )
+            
+        t = 0
+        l = 0
+        for s in range( len( l_sched_chkbtn ) ):
+            if l == 8:
+                l = 0
+                t += 1
+            sched_grid.attach( l_sched_chkbtn[s][1], l, t, 1, 1 )            
+            l += 1
+        
+        self.window.show_all()
+        
+        return sched_grid, l_sched_chkbtn 
+
+#------------------------------------------------------------------------------                         
+    def on_open_tool_btn_clicked( self, widget, data=None ):
+        print "LOAD"
+
+#------------------------------------------------------------------------------        
+    def on_add_tool_btn_clicked( self, widget, data=None ):
+        self.add_sched_dlg.run()
+        self.new_sched_ety.set_text( '' )
+        self.new_sched_ety.set_placeholder_text( 'PF' )        
+
+#------------------------------------------------------------------------------        
+    def on_cancel_add_sched_btn_clicked( self, widget, data=None ):
+        self.add_sched_dlg.hide()
+
+#------------------------------------------------------------------------------        
+    def on_add_sched_btn_clicked( self, widget, data=None ):
+        f = open( 'schedulers.cfg', 'a' )
+        if self.new_sched_ety.get_text() == '':
+            self.no_add_dlg.run()
+        else:
+            f.write( self.new_sched_ety.get_text() + '\n' )
+        f.close()
+        self.main_sched_grid.destroy()
+        self.main_sched_grid, self.main_sched_chkbox = self.create_schedulers_grid( 'sched_align' )
+        self.add_sched_dlg.hide()
+        
+#------------------------------------------------------------------------------   
+    def on_rm_tool_btn_clicked( self, widget, data=None ):
+        self.dlg_sched_grid.destroy()
+        self.dlg_sched_grid, self.dlg_sched_chkbox = self.create_schedulers_grid( 'dlg_sched_align' )
+        self.rm_sched_dlg.show_all()
+        self.rm_sched_dlg.run()
+
+#------------------------------------------------------------------------------        
+    def on_cancel_rm_sched_btn_clicked( self, widget, data=None ):
+        self.rm_sched_dlg.hide()
+
+#------------------------------------------------------------------------------        
+    def on_rm_sched_btn_clicked( self, widget, data=None ):
+        selected = self.get_chkbox_selected( self.dlg_sched_chkbox )  
+        f = open( 'schedulers.cfg' ).readlines()
+        f_new = deepcopy( f )
+        
+        for line in f:
+            for s in selected:
+                if s == line.rstrip():
+                    f_new.remove( line )
+                    
+        f = open( 'schedulers.cfg', 'w' )
+        for line in f_new:
+            f.write( line )            
+        f.close()
+        
+        self.dlg_sched_grid.destroy()
+        self.dlg_sched_grid, self.dlg_sched_chkbox = self.create_schedulers_grid( 'dlg_sched_align' )
+        self.main_sched_grid.destroy()
+        self.main_sched_grid, self.main_sched_chkbox = self.create_schedulers_grid( 'sched_align' )
+        self.rm_sched_dlg.hide()
+
+#------------------------------------------------------------------------------        
+    def get_chkbox_selected( self, l_chkbox ):
+        selected = []
+        for c in range( len( l_chkbox ) ):
+            if l_chkbox[c][1].get_active():
+                selected.append( l_chkbox[c][0] )
+        
+        return selected
+
+#------------------------------------------------------------------------------
+    def on_no_add_btn_clicked( self, widget, data=None ):
+        self.no_add_dlg.hide()
+        self.add_sched_dlg.run()
+
+#------------------------------------------------------------------------------
+    def on_quit_tool_btn_clicked( self, widget, data=None ):
+        Gtk.main_quit()
+        exit( 0 )
+
+#------------------------------------------------------------------------------                        
+    def on_cpu_cbx_changed( self, widget, data=None ):
         print 'CCCCCC'
 
-    def on_main_window_destroy(self, widget, data=None):
+#------------------------------------------------------------------------------
+    def on_main_window_destroy( self, widget, data=None ):
         Gtk.main_quit()
-        exit(0)
+        exit( 0 )
 
 
 if __name__ == "__main__":
     my_gui = LteSimHelperGui()
-    my_gui.window.show()
+    my_gui.window.show_all()
     Gtk.main()    
 #window = MenuExampleWindow()        
 #window.connect("delete-event", Gtk.main_quit)
