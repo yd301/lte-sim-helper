@@ -23,17 +23,37 @@ Author: Saulo da Mata <damata.saulo@gmail.com>
 from gi.repository import Gtk, Gdk
 from multiprocessing import cpu_count
 from copy import deepcopy
+from setup_parser import SetupParser
 
 
 class LteSimHelperGui( Gtk.Window ):
     
     def __init__( self ):
-        
-        self.builder = Gtk.Builder()
-        self.builder.add_from_file( 'lte-sim-helper-gui.glade' )      
 
-        self.window = self.builder.get_object( 'main_window' )
+        self.builder = Gtk.Builder()
+        self.builder.add_from_file( 'lte-sim-helper-gui.glade' )
         
+        self.builder.connect_signals( self )
+        
+        self.parser = SetupParser()
+        self.pref = self.parser.parse( 'preferences.cfg' )
+
+        self.main_window = self.builder.get_object( 'main_window' )
+        self.start_dlg = self.builder.get_object( 'start_dlg' )
+        
+        self.set_ask_chkbox = self.builder.get_object( 'set_ask_chkbox' )
+        
+        if self.pref['START_DLG'] == 'TRUE':                       
+            self.start_dlg.run()
+        else:
+            self.load_main_window()
+       
+       
+        
+        
+       
+#------------------------------------------------------------------------------
+    def load_main_window( self ):        
         self.create_cpu_cbx()
         self.main_sched_grid, self.main_sched_chkbox = self.create_schedulers_grid( 'sched_align' )
         self.dlg_sched_grid, self.dlg_sched_chkbox = self.create_schedulers_grid( 'dlg_sched_align' )
@@ -42,10 +62,62 @@ class LteSimHelperGui( Gtk.Window ):
         self.rm_sched_dlg = self.builder.get_object( 'rm_sched_dlg' )
         self.new_sched_ety = self.builder.get_object( 'new_sched_ety' )
         self.no_add_dlg = self.builder.get_object( 'no_add_dlg' )
-
-        self.builder.connect_signals( self )
         
-#------------------------------------------------------------------------------            
+        self.lte_sim_path = self.pref['LTE_SIM_PATH'] 
+        self.save_dir_path = self.pref['SAVE_DIR_PATH'] 
+        
+       
+#------------------------------------------------------------------------------       
+    def on_start_ok_btn_clicked( self, widget, data=None ):
+       
+        start_chkbox = self.builder.get_object( 'start_chkbox' )
+        
+        if start_chkbox.get_active():
+            self.save_preference( 'START_DLG', 'TRUE' )
+            self.set_ask_chkbox.set_active( True )
+        else:
+            self.save_preference( 'START_DLG', 'FALSE' )
+            
+        self.lte_sim_path = self.builder.get_object( 'start_lte_fc' ).get_filename()
+        self.save_dir_path = self.builder.get_object( 'start_save_fc' ).get_filename()
+        
+        if self.lte_sim_path == None:
+            self.no_lte_path_dlg = self.builder.get_object( 'no_lte_path_dlg' )
+            self.no_lte_path_dlg.run()
+        else:
+            self.save_preference( 'LTE_SIM_PATH', self.lte_sim_path )
+            self.save_preference( 'SAVE_DIR_PATH', self.save_dir_path )
+            self.load_main_window()
+            self.start_dlg.hide()
+           
+#------------------------------------------------------------------------------
+    def save_preference( self, key, value ):
+        f = open( 'preferences.cfg' ).readlines()
+        f_new = deepcopy( f )
+        
+        for line in f:
+            if line.startswith( key ):
+                f_new[f_new.index( line )] = key + '=' + value + '\n'
+                    
+        f = open( 'preferences.cfg', 'w' )
+        for line in f_new:
+            f.write( line )            
+        f.close()        
+        
+        self.pref = self.parser.parse( 'preferences.cfg' )
+        
+
+
+#------------------------------------------------------------------------------       
+    def on_start_cancel_btn_clicked( self, widget, data=None ):
+        exit()
+        
+#------------------------------------------------------------------------------       
+    def on_start_dlg_destroy( self, widget, data=None ):
+        exit()        
+
+#------------------------------------------------------------------------------        
+     
     def create_cpu_cbx( self ):
         cpu_store = Gtk.ListStore( int )
         
@@ -85,7 +157,7 @@ class LteSimHelperGui( Gtk.Window ):
             sched_grid.attach( l_sched_chkbtn[s][1], l, t, 1, 1 )            
             l += 1
         
-        self.window.show_all()
+        self.main_window.show_all()
         
         return sched_grid, l_sched_chkbtn 
 
@@ -163,6 +235,17 @@ class LteSimHelperGui( Gtk.Window ):
         self.add_sched_dlg.run()
 
 #------------------------------------------------------------------------------
+    def on_set_tool_btn_clicked( self, widget, data=None ):
+        self.set_lte_fc = self.builder.get_object( 'set_lte_fc' )
+        self.set_lte_fc.set_filename( self.lte_sim_path )
+        
+        self.set_save_fc = self.builder.get_object( 'set_save_fc' )
+        self.set_save_fc.set_filename( self.save_dir_path )
+        
+        self.set_dlg = self.builder.get_object( 'set_dlg' )
+        self.set_dlg.run()
+               
+#------------------------------------------------------------------------------
     def on_quit_tool_btn_clicked( self, widget, data=None ):
         Gtk.main_quit()
         exit( 0 )
@@ -176,10 +259,34 @@ class LteSimHelperGui( Gtk.Window ):
         Gtk.main_quit()
         exit( 0 )
 
+#------------------------------------------------------------------------------
+    def on_set_cancel_btn_clicked( self, widget, data=None ):
+        self.set_dlg.hide()
+    
+    
+#------------------------------------------------------------------------------
+    def on_set_save_btn_clicked( self, widget, data=None ):
+        self.save_preference( 'LTE_SIM_PATH', self.set_lte_fc.get_filename() )
+        self.save_preference( 'SAVE_DIR_PATH', self.set_save_fc.get_filename() )
+        
+        if self.set_ask_chkbox.get_active():
+            self.save_preference( 'START_DLG', 'TRUE' )
+        else:
+            self.save_preference( 'START_DLG', 'FALSE' )
+            
+        self.set_dlg.hide()
+    
+    
+#------------------------------------------------------------------------------
+    def on_no_lte_path_btn_clicked( self, widget, data=None ):
+        self.no_lte_path_dlg.hide()
+        self.start_dlg.run()
+#------------------------------------------------------------------------------
+#    def( self, widget, data=None ):    
+
 
 if __name__ == "__main__":
     my_gui = LteSimHelperGui()
-    my_gui.window.show_all()
     Gtk.main()    
 #window = MenuExampleWindow()        
 #window.connect("delete-event", Gtk.main_quit)
