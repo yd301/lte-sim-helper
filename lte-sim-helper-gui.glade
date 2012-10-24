@@ -136,10 +136,13 @@
     <columns>
       <!-- column-name method -->
       <column type="gchararray"/>
+      <!-- column-name alias -->
+      <column type="gchararray"/>
     </columns>
     <data>
       <row>
         <col id="0" translatable="yes">Full Bandwidth</col>
+        <col id="1" translatable="yes">FULL_BANDWIDTH</col>
       </row>
     </data>
   </object>
@@ -147,13 +150,17 @@
     <columns>
       <!-- column-name mode -->
       <column type="gchararray"/>
+      <!-- column-name alias -->
+      <column type="gchararray"/>
     </columns>
     <data>
       <row>
         <col id="0" translatable="yes">Periodic</col>
+        <col id="1" translatable="yes">PERIODIC</col>
       </row>
       <row>
         <col id="0" translatable="yes">Aperiodic</col>
+        <col id="1" translatable="yes">APERIODIC</col>
       </row>
     </data>
   </object>
@@ -318,6 +325,34 @@
               </packing>
             </child>
             <child>
+              <object class="GtkToolButton" id="run_tool_btn">
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="label" translatable="yes">run</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-media-play</property>
+                <signal name="clicked" handler="on_run_tool_btn_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSeparatorToolItem" id="toolbutton6">
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="use_action_appearance">False</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkToolButton" id="quit_tool_btn">
                 <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
@@ -338,70 +373,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkFrame" id="dir_frm">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label_xalign">0</property>
-            <property name="shadow_type">in</property>
-            <child>
-              <object class="GtkAlignment" id="alignment8">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="left_padding">12</property>
-                <child>
-                  <object class="GtkGrid" id="grid6">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkLabel" id="lte_dir_lbl">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="halign">start</property>
-                        <property name="label" translatable="yes">LTE-Sim:</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">0</property>
-                        <property name="width">1</property>
-                        <property name="height">1</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="save_dir_lbl">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="halign">start</property>
-                        <property name="label" translatable="yes">Save directory:</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">1</property>
-                        <property name="width">1</property>
-                        <property name="height">1</property>
-                      </packing>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child type="label">
-              <object class="GtkLabel" id="dir_lbl">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">&lt;b&gt;Directories&lt;/b&gt;</property>
-                <property name="use_markup">True</property>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="padding">10</property>
-            <property name="position">2</property>
+            <property name="position">0</property>
           </packing>
         </child>
         <child>
@@ -440,7 +412,6 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="active">0</property>
-                        <signal name="changed" handler="on_cpu_cbx_changed" swapped="no"/>
                       </object>
                       <packing>
                         <property name="left_attach">1</property>
@@ -466,7 +437,7 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="padding">10</property>
-            <property name="position">3</property>
+            <property name="position">1</property>
           </packing>
         </child>
         <child>
@@ -485,7 +456,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkCheckButton" id="erase_chx">
+                      <object class="GtkCheckButton" id="erase_chkbox">
                         <property name="label" translatable="yes">Erase Trace Files</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
@@ -582,7 +553,7 @@ If you set a high value for CDF GRANULARITY the results processing can take fore
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="padding">10</property>
-            <property name="position">4</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child>
@@ -717,7 +688,7 @@ CRESCENT: it starts with 1 and increments the value by one for each simulation.<
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkSpinButton" id="sim_tme_flw_sn">
+                                  <object class="GtkSpinButton" id="sim_tme_flw_sbn">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="margin_left">5</property>
@@ -860,11 +831,11 @@ Ex: 2:2:10</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkComboBox" id="ue_mod_cbx">
+                                  <object class="GtkComboBox" id="ue_mob_cbx">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="margin_left">5</property>
-                                    <property name="model">ue_mod_store</property>
+                                    <property name="model">ue_mob_store</property>
                                     <property name="active">0</property>
                                     <child>
                                       <object class="GtkCellRendererText" id="uemobcellrenderertext1"/>
@@ -1054,7 +1025,7 @@ Ex: 2:2:10</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <child>
-                                  <object class="GtkCheckButton" id="voip_chx">
+                                  <object class="GtkCheckButton" id="voip_chkbox">
                                     <property name="label" translatable="yes">VoIP</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="visible">True</property>
@@ -1072,7 +1043,7 @@ Ex: 2:2:10</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkCheckButton" id="video_chx">
+                                  <object class="GtkCheckButton" id="video_chkbox">
                                     <property name="label" translatable="yes">Video</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="visible">True</property>
@@ -1090,7 +1061,7 @@ Ex: 2:2:10</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkCheckButton" id="infbuf_chx">
+                                  <object class="GtkCheckButton" id="infbuf_chkbox">
                                     <property name="label" translatable="yes">Infinite Buffer</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="visible">True</property>
@@ -1108,7 +1079,7 @@ Ex: 2:2:10</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkCheckButton" id="cbr_chx">
+                                  <object class="GtkCheckButton" id="cbr_chkbox">
                                     <property name="label" translatable="yes">CBR</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="visible">True</property>
@@ -1562,6 +1533,30 @@ Ex: 2:2:10</property>
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="padding">10</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkProgressBar" id="sim_pbar">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkStatusbar" id="status_bar">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">2</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
             <property name="position">5</property>
           </packing>
         </child>
@@ -1633,6 +1628,54 @@ Ex: 2:2:10</property>
       <action-widget response="0">no_add_btn</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkMessageDialog" id="no_flow_dlg">
+    <property name="can_focus">False</property>
+    <property name="border_width">5</property>
+    <property name="type_hint">dialog</property>
+    <property name="skip_taskbar_hint">True</property>
+    <property name="message_type">error</property>
+    <property name="text" translatable="yes">No flow!</property>
+    <property name="secondary_text" translatable="yes">You must select at least one flow.</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="messagedialog-vbox6">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="messagedialog-action_area6">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="no_flow_btn">
+                <property name="label">gtk-ok</property>
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+                <signal name="clicked" handler="on_no_flow_btn_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">no_flow_btn</action-widget>
+    </action-widgets>
+  </object>
   <object class="GtkMessageDialog" id="no_lte_path_dlg">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
@@ -1681,14 +1724,65 @@ Ex: 2:2:10</property>
       <action-widget response="0">no_lte_path_btn</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkMessageDialog" id="no_sched_dlg">
+    <property name="can_focus">False</property>
+    <property name="border_width">5</property>
+    <property name="type_hint">dialog</property>
+    <property name="skip_taskbar_hint">True</property>
+    <property name="message_type">error</property>
+    <property name="text" translatable="yes">No scheduler!</property>
+    <property name="secondary_text" translatable="yes">You must select at least one scheduler.</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="messagedialog-vbox5">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="messagedialog-action_area5">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="no_sched_btn">
+                <property name="label">gtk-ok</property>
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+                <signal name="clicked" handler="on_no_sched_btn_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">no_sched_btn</action-widget>
+    </action-widgets>
+  </object>
   <object class="GtkListStore" id="prop_model_store">
     <columns>
       <!-- column-name model -->
+      <column type="gchararray"/>
+      <!-- column-name alias -->
       <column type="gchararray"/>
     </columns>
     <data>
       <row>
         <col id="0" translatable="yes">Macro Cell Urban Model</col>
+        <col id="1" translatable="yes">MACRO_CELL_URBAN_MODEL</col>
       </row>
     </data>
   </object>
@@ -1821,15 +1915,19 @@ Ex: 2:2:10</property>
       <column type="gchararray"/>
       <!-- column-name mode -->
       <column type="gchararray"/>
+      <!-- column-name alias -->
+      <column type="gchararray"/>
     </columns>
     <data>
       <row>
         <col id="0" translatable="yes">Single Cell With Interference</col>
         <col id="1" translatable="yes">Single</col>
+        <col id="2" translatable="yes">SCWIFF</col>
       </row>
       <row>
         <col id="0" translatable="yes">Multi Cell</col>
         <col id="1" translatable="yes">Multi</col>
+        <col id="2" translatable="yes">MCFF</col>
       </row>
     </data>
   </object>
@@ -2255,23 +2353,33 @@ Ex: 2:2:10</property>
       <action-widget response="0">start_cancel_btn</action-widget>
     </action-widgets>
   </object>
-  <object class="GtkListStore" id="ue_mod_store">
+  <object class="GtkListStore" id="ue_mob_store">
     <columns>
-      <!-- column-name gchararray1 -->
+      <!-- column-name name -->
+      <column type="gchararray"/>
+      <!-- column-name alias -->
       <column type="gchararray"/>
     </columns>
     <data>
       <row>
         <col id="0" translatable="yes">Constant Position</col>
+        <col id="1" translatable="yes">CONSTANT_POSITION</col>
       </row>
       <row>
         <col id="0" translatable="yes">Random Direction</col>
+        <col id="1" translatable="yes">RANDOM_DIRECTION</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Random Waypoint</col>
+        <col id="0" translatable="yes">Random Walk</col>
+        <col id="1" translatable="yes">RANDOM_WALK</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">Random WayPoint</col>
+        <col id="1" translatable="yes">RANDOM_WAYPOINT</col>
       </row>
       <row>
         <col id="0" translatable="yes">Manhattan</col>
+        <col id="1" translatable="yes">MANHATTAN</col>
       </row>
     </data>
   </object>

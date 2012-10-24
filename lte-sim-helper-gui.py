@@ -19,11 +19,13 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 Author: Saulo da Mata <damata.saulo@gmail.com>
 
 '''
-
-from gi.repository import Gtk, Gdk
+import time
+from gi.repository import Gtk, Gdk, GObject
 from multiprocessing import cpu_count
 from copy import deepcopy
 from setup_parser import SetupParser
+from lte_sim_helper import LteSimHelper
+from multiprocessing import Process, Queue
 
 
 class LteSimHelperGui( Gtk.Window ):
@@ -42,12 +44,21 @@ class LteSimHelperGui( Gtk.Window ):
         self.start_dlg = self.builder.get_object( 'start_dlg' )
         
         self.set_ask_chkbox = self.builder.get_object( 'set_ask_chkbox' )
+        self.no_sched_dlg = self.builder.get_object( 'no_sched_dlg' )
+        self.no_flow_dlg = self.builder.get_object( 'no_flow_dlg' )
+        self.sim_pbar = self.builder.get_object( 'sim_pbar' )
+        self.status_bar = self.builder.get_object( 'status_bar' )
+        
+        self.timeout_id = GObject.timeout_add( 1000, self.update_sim_pbar, None )
+        self.frac = 0.0
+        self.q = Queue()
         
         if self.pref['START_DLG'] == 'TRUE':                       
             self.start_dlg.run()
         else:
             self.load_main_window()
        
+
        
         
         
@@ -250,10 +261,6 @@ class LteSimHelperGui( Gtk.Window ):
         Gtk.main_quit()
         exit( 0 )
 
-#------------------------------------------------------------------------------                        
-    def on_cpu_cbx_changed( self, widget, data=None ):
-        print 'CCCCCC'
-
 #------------------------------------------------------------------------------
     def on_main_window_destroy( self, widget, data=None ):
         Gtk.main_quit()
@@ -281,14 +288,205 @@ class LteSimHelperGui( Gtk.Window ):
     def on_no_lte_path_btn_clicked( self, widget, data=None ):
         self.no_lte_path_dlg.hide()
         self.start_dlg.run()
-#------------------------------------------------------------------------------
-#    def( self, widget, data=None ):    
 
+#------------------------------------------------------------------------------
+    def on_no_sched_btn_clicked( self, widget, data=None ):
+        self.no_sched_dlg.hide()
+        self.main_window.show_all()
+        
+#------------------------------------------------------------------------------
+    def on_no_flow_btn_clicked( self, widget, data=None ):       
+        self.no_flow_dlg.hide()
+        self.main_window.show_all()
+       
+#------------------------------------------------------------------------------       
+    def update_sim_pbar( self, user_data ):
+
+        if not self.q.empty():
+            call_back = self.q.get()
+            txt = call_back[0]
+            self.frac = call_back[1]
+            self.sim_pbar.set_show_text( True )
+            self.sim_pbar.set_text( txt )                 
+            self.sim_pbar.set_fraction( self.frac )
+            self.main_window.show_all()        
+        return True
+            
+#------------------------------------------------------------------------------
+    def on_run_tool_btn_clicked( self, widget, data=None ):
+
+        done = False
+        
+        if self.generate_setup_file():
+            helper = LteSimHelper()
+            p = Process( target=helper.run_simulations, args=( self.q, ) )            
+            p.start() 
+                
+            #helper.run_simulations( self, self.sim_pbar )
+            #helper.compute_results()
+        
+
+#------------------------------------------------------------------------------
+    def generate_setup_file( self ):
+        
+        cpu_cbx = self.builder.get_object( 'cpu_cbx' )
+        cpu_model = cpu_cbx.get_model()
+        n_cpu = str( cpu_model[cpu_cbx.get_active_iter()][0] )
+        
+        erase_chkbox = self.builder.get_object( 'erase_chkbox' )
+        if erase_chkbox.get_active(): erase_flag = 'yes'
+        else: erase_flag = 'no'
+        
+        dec_sbn = self.builder.get_object( 'dec_sbn' )
+        n_dec = str( dec_sbn.get_value_as_int() )
+        
+        cdf_sbn = self.builder.get_object( 'cdf_sbn' )
+        cdf_gran = str( cdf_sbn.get_value_as_int() )
+        
+        sim_tme_sbn = self.builder.get_object( 'sim_tme_sbn' )
+        sim_time = str( sim_tme_sbn.get_value_as_int() )
+        
+        sim_tme_flw_sbn = self.builder.get_object( 'sim_tme_flw_sbn' )
+        sim_time_flow = str( sim_tme_flw_sbn.get_value_as_int() )
+        
+        seed_cbx = self.builder.get_object( 'seed_cbx' )
+        seed_model = seed_cbx.get_model()
+        seed = str( seed_model[seed_cbx.get_active_iter()][0] )
+        
+        n_sim_sbn = self.builder.get_object( 'n_sim_sbn' )
+        n_sim = str( n_sim_sbn.get_value_as_int() )
+        
+        bw_sbn = self.builder.get_object( 'bw_sbn' )
+        bw = str( bw_sbn.get_value() )
+        
+        scen_cbx = self.builder.get_object( 'scen_cbx' )
+        scen_model = scen_cbx.get_model()
+        lte_scen = str( scen_model[scen_cbx.get_active_iter()][2] )
+        cell_mode = str( scen_model[scen_cbx.get_active_iter()][1] )
+        
+        n_cell_sbn = self.builder.get_object( 'n_cell_sbn' )
+        n_cell = str( n_cell_sbn.get_value_as_int() )
+        
+        cluster_sbn = self.builder.get_object( 'cluster_sbn' )
+        clusters = str( cluster_sbn.get_value_as_int() )
+        
+        rad_sbn = self.builder.get_object( 'rad_sbn' )
+        rad = str( rad_sbn.get_value() )
+        
+        n_ue_ety = self.builder.get_object( 'n_ue_ety' )
+        n_ue = n_ue_ety.get_text()
+        
+        ue_speed_sbn = self.builder.get_object( 'ue_speed_sbn' )
+        ue_speed = str( ue_speed_sbn.get_value_as_int() )
+        
+        ue_mob_cbx = self.builder.get_object( 'ue_mob_cbx' )
+        ue_mob_model = ue_mob_cbx.get_model()
+        ue_mob = str( ue_mob_model[ue_mob_cbx.get_active_iter()][1] )
+        
+        flow_flag = False
+        voip_chkbox = self.builder.get_object( 'voip_chkbox' )
+        if voip_chkbox.get_active(): 
+            n_voip = '1'
+            flow_flag = True
+        else: n_voip = '0'
+        
+        video_chkbox = self.builder.get_object( 'video_chkbox' )
+        if video_chkbox.get_active(): 
+            n_video = '1'
+            flow_flag = True
+        else: n_video = '0'
+        
+        infbuf_chkbox = self.builder.get_object( 'infbuf_chkbox' )
+        if infbuf_chkbox.get_active(): 
+            n_infbuf = '1'
+            flow_flag = True
+        else: n_infbuf = '0'
+        
+        cbr_chkbox = self.builder.get_object( 'cbr_chkbox' )
+        if cbr_chkbox.get_active(): 
+            n_cbr = '1'
+            flow_flag = True
+        else: n_cbr = '0'
+        
+        if not flow_flag:
+            self.no_flow_dlg.run()
+            return False
+        
+        delay_sbn = self.builder.get_object( 'delay_sbn' )
+        delay = str( delay_sbn.get_value_as_int() / 1000.0 )
+        
+        vbr_cbx = self.builder.get_object( 'vbr_cbx' )
+        vbr_model = vbr_cbx.get_model()
+        vbr = str( vbr_model[vbr_cbx.get_active_iter()][0] )
+        
+        schedulers = ''
+        sched_flag = False
+        for s in range( len( self.main_sched_chkbox ) ):
+            if self.main_sched_chkbox[s][1].get_active():
+                schedulers += self.main_sched_chkbox[s][0] + ' '
+                sched_flag = True
+        
+        if not sched_flag:
+            self.no_sched_dlg.run()
+            return False
+            
+                
+        prop_model_cbx = self.builder.get_object( 'prop_model_cbx' )
+        prop_model_model = prop_model_cbx.get_model()
+        prop_model = str( prop_model_model[prop_model_cbx.get_active_iter()][1] )
+        
+        frm_struct_cbx = self.builder.get_object( 'frm_struct_cbx' )
+        frm_struct_model = frm_struct_cbx.get_model()
+        frm_struct = str( frm_struct_model[frm_struct_cbx.get_active_iter()][0] )
+        
+        cqi_met_cbx = self.builder.get_object( 'cqi_met_cbx' )
+        cqi_met_model = cqi_met_cbx.get_model()
+        cqi_met = str( cqi_met_model[cqi_met_cbx.get_active_iter()][1] )
+        
+        cqi_mode_cbx = self.builder.get_object( 'cqi_mode_cbx' )
+        cqi_mode_model = cqi_mode_cbx.get_model()
+        cqi_mode = str( cqi_mode_model[cqi_mode_cbx.get_active_iter()][1] )        
+
+        cqi_inter_sbn = self.builder.get_object( 'cqi_inter_sbn' )
+        cqi_inter = str( cqi_inter_sbn.get_value_as_int() )                        
+              
+        f = open( 'setup.cfg', 'w' )
+        
+        f.write( 'LTE_SIM_PATH=' + self.lte_sim_path + '\n' + 
+                 'SAVE_DIR=' + self.save_dir_path + '/\n' + 
+                 'N_CPUs=' + n_cpu + '\n' + 
+                 'ERASE_TRACE_FILES=' + erase_flag + '\n' + 
+                 'N_DEC=' + n_dec + '\n' + 
+                 'CDF_GRAN=' + cdf_gran + '\n' + 
+                 'SIM_TIME_FLOW=' + sim_time + '\n' + 
+                 'SIM_TIME=' + sim_time_flow + '\n' + 
+                 'SEED=' + seed + '\n' + 
+                 'NUM_SIM=' + n_sim + '\n' + 
+                 'DL_BW=' + bw + '\n' + 
+                 'LTE_SCENARIO=' + lte_scen + '\n' + 
+                 'CELL_MODE=' + cell_mode + '\n' + 
+                 'N_CELLS=' + n_cell + '\n' + 
+                 'RADIUS=' + rad + '\n' + 
+                 'CLUSTERS=' + clusters + '\n' + 
+                 'USERS=' + n_ue + '\n' + 
+                 'SPEED=' + ue_speed + '\n' + 
+                 'MOBILITY_MODEL=' + ue_mob + '\n' + 
+                 'N_VOIP=' + n_voip + '\n' + 
+                 'N_VIDEO=' + n_video + '\n' + 
+                 'N_BE=' + n_infbuf + '\n' + 
+                 'N_CBR=' + n_cbr + '\n' + 
+                 'MAX_DELAY=' + delay + '\n' + 
+                 'VIDEO_BIT_RATE=' + vbr + '\n' + 
+                 'SCHEDULERS=' + schedulers + '\n' + 
+                 'PROP_MODEL=' + prop_model + '\n' + 
+                 'FRAME_STRUCT=' + frm_struct + '\n' + 
+                 'CQI_METHOD=' + cqi_met + '\n' + 
+                 'CQI_REP_MODE=' + cqi_mode + '\n' + 
+                 'CQI_REP_INTERVAL=' + cqi_inter + '\n' )
+
+        return True
+    
 
 if __name__ == "__main__":
     my_gui = LteSimHelperGui()
     Gtk.main()    
-#window = MenuExampleWindow()        
-#window.connect("delete-event", Gtk.main_quit)
-#window.show_all()
-#Gtk.main()
