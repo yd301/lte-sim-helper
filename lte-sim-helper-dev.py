@@ -19,12 +19,11 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 Author: Saulo da Mata <damata.saulo@gmail.com>
 '''
 
-from subprocess import call, Popen
+from subprocess import call
 from multiprocessing import Process, Queue, cpu_count
 import sys, time, numpy, random, os
-from datetime import datetime
+from datetime import timedelta, datetime
 from copy import deepcopy
-from setup_parser import SetupParser
 
 
 
@@ -32,11 +31,11 @@ class LteSimHelper( object ):
     
     def __init__( self ):
 
-        parser = SetupParser()              
-        self.par_dict = parser.parse( 'setup.cfg' )
+        print '>> Hi, welcome!\n>> I`m processing your simulation parameters... '                
+        self.par_dict = self.parse_setup_file( 'setup-dev.cfg' )
         self.users_list = self.get_users_list()
         
-        self.config_path = os.getcwd() + '/setup.cfg'
+        self.config_path = os.getcwd() + '/setup-dev.cfg'
         
         self.schedulers_list = self.par_dict['SCHEDULERS'].split()      
 
@@ -48,9 +47,9 @@ class LteSimHelper( object ):
         
         self.start = datetime.now() 
         
-        if self.par_dict['CELL_MODE'] == 'Single':
+        if self.par_dict['CELL_MODE'] == 'SINGLE':
             self.cell_factor = 1
-        elif self.par_dict['CELL_MODE'] == 'Multi':
+        elif self.par_dict['CELL_MODE'] == 'MULTI':
             self.cell_factor = int( self.par_dict['N_CELLS'] )
         else:
             print "\n\n>> ERROR! CELL_MODE: '" + self.par_dict['CELL_MODE'] + "' not supported!"
@@ -72,9 +71,8 @@ class LteSimHelper( object ):
             self.flow_list.append( 'INF_BUF' )
             call( ['mkdir -p ' + self.par_dict['SAVE_DIR'] + 'dat/' + 'INF_BUF'], shell=True )            
             
-
-        f = open( 'pid', 'w' )
-        f.close()
+            
+        
        
 #------------------------------------------------------------------------------        
     def get_parameters( self ):
@@ -85,11 +83,11 @@ class LteSimHelper( object ):
         for s in self.schedulers_list:
             for u in self.users_list:      
                 for i in range( int( self.par_dict['NUM_SIM'] ) ):
-                    if self.par_dict['SEED'] == 'Random':
+                    if self.par_dict['SEED'] == 'RANDOM':
                         seed = random.randint( 0, 1000000 )
                     else:
                         seed = i + 1
-                    tmp = self.par_dict['LTE_SIM_PATH'] + ' '
+                    tmp = self.par_dict['LTE_SIM_DIR'] + 'LTE-Sim '
                     tmp += self.par_dict['LTE_SCENARIO'] + ' ' + str( u ) + ' '
                     tmp += s + ' ' + str( seed ) + ' '
                     tmp += self.config_path
@@ -97,10 +95,10 @@ class LteSimHelper( object ):
                     commands.append( ( tmp, tmp2, u ) )
 
         return commands
-          
+    
 #------------------------------------------------------------------------------
-    def run_simulations( self, q_gui ):        
-                    
+    def run_simulations( self ):        
+        
         n_cpu = cpu_count()
         commands = self.get_parameters()
         n_scen = len( commands )
@@ -111,12 +109,7 @@ class LteSimHelper( object ):
         print '>> You have ' + str( n_scen ) + ' simulations to run!'
         print '>> You`re using ' + self.par_dict['N_CPUs'] + ' of ' + str( n_cpu ) + ' CPUs available in this machine!'
         self.start = datetime.now()   
-        print '>> Starting simulations at ' + str( self.start ) + '\n'    
-        print self.par_dict['N_CPUs']                 
-        
-        q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                    finished / float( n_scen ),
-                    False, False] )
+        print '>> Starting simulations at ' + str( self.start ) + '\n'                         
             
         try:
             while finished < n_scen:
@@ -130,17 +123,10 @@ class LteSimHelper( object ):
                                          '\twaiting: ', len( commands ),
                                          '\tfinished: ', finished )
                             p.start()
-                            q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                                        finished / float( n_scen ),
-                                        False, False] )   
                             p.join()
-
                         else:
-                            p = Process( target=self.trigger_simulation, args=( commands[-1], q, ) )                            
+                            p = Process( target=self.trigger_simulation, args=( commands[-1], q, ) )
                             p.start()
-                            q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                                        finished / float( n_scen ),
-                                        False, False] )                                                                  
                             commands.pop()
                     else:
                         if not q.empty():
@@ -151,9 +137,7 @@ class LteSimHelper( object ):
                     self.counter( '\trunning: ', running,
                                  '\twaiting: ', len( commands ),
                                  '\tfinished: ', finished )
-                    q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                                finished / float( n_scen ),
-                                False, False] )                                        
+                                        
                 if not q.empty():
                     q.get()
                     running -= 1
@@ -161,39 +145,32 @@ class LteSimHelper( object ):
                 time.sleep( 1 )
                 self.counter( '\trunning: ', running,
                              '\twaiting: ', len( commands ),
-                             '\tfinished: ', finished )              
-                q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                            finished / float( n_scen ),
-                            False, False] )
+                             '\tfinished: ', finished )
         except KeyboardInterrupt:
             print '\n\n>> Ctrl+c pressed! Exiting...\n'
+            exit()
                    
         self.counter( '\trunning: ', running,
                      '\twaiting: ', len( commands ),
-                     '\tfinished: ', finished )       
-        q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                    finished / float( n_scen ),
-                    True, False] )
+                     '\tfinished: ', finished )
         print '\n\n>> The simulations have finished!' 
-  
+
 
 #------------------------------------------------------------------------------
     def trigger_simulation( self, command, q ):
         
         output_file = open( command[1], 'w' )
-        p = Popen( [command[0]], shell=True, stdout=output_file )
-        p.wait()
-     
+        call( [command[0]], shell=True, stdout=output_file )             
         q.put( [1] )        
 
 #------------------------------------------------------------------------------
 
-    def compute_results( self , q_gui ):
-               
+    def compute_results( self ):
+        
         print '\n>> Processing results...'
         commands = self.get_parameters()
         self.initialize_lists( commands )
-        self.spawn_processes( commands, q_gui )
+        self.spawn_processes( commands )
         
         self.write_to_file()
                
@@ -246,16 +223,12 @@ class LteSimHelper( object ):
             
 
 #------------------------------------------------------------------------------
-    def spawn_processes( self, commands, q_gui ):
+    def spawn_processes( self, commands ):
         
         n_scen = len( commands )
         running = 0
         finished = 0
         q = Queue()        
-        
-        q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                    finished / float( n_scen ),
-                    False, False] )                           
 
         try:        
             while finished < n_scen:
@@ -263,21 +236,18 @@ class LteSimHelper( object ):
                     if running < int( self.par_dict['N_CPUs'] ):
                         running += 1                   
                         if len( commands ) == 1:                    
-                            self.proc = Process( target=self.parse_result_file,
+                            p = Process( target=self.parse_result_file,
                                         args=( commands[-1][1], commands[-1][2], len( commands ) - 1, q, ) )
                             commands.pop()
                             self.counter( '\trunning: ', running,
                                          '\twaiting: ', len( commands ),
                                          '\tfinished: ', finished )
-                            q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                                        finished / float( n_scen ),
-                                        False, False] )                   
-                            self.proc.start()
-                            self.proc.join()
+                            p.start()
+                            p.join()
                         else:
-                            self.proc = Process( target=self.parse_result_file,
+                            p = Process( target=self.parse_result_file,
                                         args=( commands[-1][1], commands[-1][2], len( commands ) - 1, q, ) )
-                            self.proc.start()
+                            p.start()
                             commands.pop()
                     else:
                         if not q.empty():
@@ -293,13 +263,10 @@ class LteSimHelper( object ):
                                     self.l_th_bearers[cb[0]][k][j] = cb[2][k][j] / float( self.par_dict['SIM_TIME_FLOW'] )                            
                             running -= 1
                             finished += 1                        
-                        time.sleep( 0.1 )
+                        time.sleep( 0.01 )
                     self.counter( '\trunning: ', running,
                                  '\twaiting: ', len( commands ),
-                                 '\tfinished: ', finished )        
-                    q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                                finished / float( n_scen ),
-                                False, False] )                                               
+                                 '\tfinished: ', finished )                                    
                 if not q.empty():
                     cb = q.get()
                     for k in range( len( cb[1] ) ):
@@ -313,23 +280,17 @@ class LteSimHelper( object ):
                             self.l_th_bearers[cb[0]][k][j] = cb[2][k][j] / float( self.par_dict['SIM_TIME_FLOW'] )
                     running -= 1
                     finished += 1
-                time.sleep( 0.1 )
+                time.sleep( 0.01 )
                 self.counter( '\trunning: ', running,
                              '\twaiting: ', len( commands ),
                              '\tfinished: ', finished )
-                q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                            finished / float( n_scen ),
-                            False, False] )                   
         except KeyboardInterrupt:
             print '\n\n>> Ctrl+c pressed! Exiting...\n'
-#            exit()
+            exit()
                                        
         self.counter( '\trunning: ', running,
                      '\twaiting: ', len( commands ),
                      '\tfinished: ', finished )
-        q_gui.put( ['running: ' + str( running ) + '\twaiting: ' + str( len( commands ) ) + '\tdone: ' + str( finished ),
-                    finished / float( n_scen ),
-                    True, True] )                   
         
 #------------------------------------------------------------------------------
     def parse_result_file( self, file_name, u, i, q ):
@@ -378,7 +339,7 @@ class LteSimHelper( object ):
             sum_size_fi_no_0.append( filter( lambda a: a != 0, sum_size_fi[w] ) )
         
         q.put( [i, sum_size_th, sum_size_fi_no_0, sum_rx, sum_tx, sum_delay, occur] )
-                         
+        #q.put([i, sum_size_th, sum_size_fi, sum_rx, sum_tx, sum_delay, occur])                            
                               
 #------------------------------------------------------------------------------
     def write_to_file( self ):
@@ -439,7 +400,10 @@ class LteSimHelper( object ):
                             sum_sq_goodput += pow( k, 2 )                                                             
                         sq_sum_goodput = pow( sum_goodput, 2 )
                         try:
+                            #print self.l_th_bearers[h][f]
+                            #tmp_fi.append(sq_sum_goodput/float(((len(self.l_th_bearers[h][f])/(len(self.flow_list)*self.cell_factor)) * sum_sq_goodput)))
                             tmp_fi.append( sq_sum_goodput / float( len( self.l_th_bearers[h][f] ) * sum_sq_goodput ) )
+                            #print tmp_fi
                         except ZeroDivisionError:
                             tmp_fi.append( 0 )                            
                     th_mean = round( numpy.mean( tmp_th ) * pow( 10, -6 ), self.n_dec )                    # transform to Mbps
@@ -552,9 +516,10 @@ class LteSimHelper( object ):
                          
 
 #------------------------------------------------------------------------------ 
-    def counter ( self, string1, c1, string2, c2, string3, c3 ): 
-        sys.stdout.write( '\r' + string1 + ' ' + str( c1 ) + '  ' + string2 + ' ' + str( c2 ) + '  ' + string3 + ' ' + str( c3 ) + ' ' )
-        sys.stdout.flush()
+    def counter ( self, string1, c1, string2, c2, string3, c3 ):
+        
+       sys.stdout.write( '\r' + string1 + ' ' + str( c1 ) + '  ' + string2 + ' ' + str( c2 ) + '  ' + string3 + ' ' + str( c3 ) + ' ' )
+       sys.stdout.flush()
         
 #------------------------------------------------------------------------------       
     def insert_header_scheduler( self, f, title ):        
@@ -564,10 +529,6 @@ class LteSimHelper( object ):
             tmp += '\t' + i
         f.write( tmp + '\n' )        
 
-    def kill_process( self ):
-        if self.proc.is_alive():
-            print 'alive'
-            self.proc.terminate()
 
 #------------------------------------------------------------------------------
     def plot( self ):

@@ -19,13 +19,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 Author: Saulo da Mata <damata.saulo@gmail.com>
 
 '''
-import time
+import time, os
 from gi.repository import Gtk, Gdk, GObject
-from multiprocessing import cpu_count
 from copy import deepcopy
 from setup_parser import SetupParser
 from lte_sim_helper import LteSimHelper
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Manager, cpu_count, active_children, current_process
+from subprocess import call, Popen
+from datetime import datetime
 
 
 class LteSimHelperGui( Gtk.Window ):
@@ -46,23 +47,16 @@ class LteSimHelperGui( Gtk.Window ):
         self.set_ask_chkbox = self.builder.get_object( 'set_ask_chkbox' )
         self.no_sched_dlg = self.builder.get_object( 'no_sched_dlg' )
         self.no_flow_dlg = self.builder.get_object( 'no_flow_dlg' )
-        self.sim_pbar = self.builder.get_object( 'sim_pbar' )
+        self.pbar = self.builder.get_object( 'sim_pbar' )
         self.status_bar = self.builder.get_object( 'status_bar' )
+        self.sim_done_dlg = self.builder.get_object( 'sim_done_dlg' )
         
-        self.timeout_id = GObject.timeout_add( 1000, self.update_sim_pbar, None )
-        self.frac = 0.0
-        self.q = Queue()
-        
+       
         if self.pref['START_DLG'] == 'TRUE':                       
             self.start_dlg.run()
         else:
             self.load_main_window()
-       
-
-       
-        
-        
-       
+              
 #------------------------------------------------------------------------------
     def load_main_window( self ):        
         self.create_cpu_cbx()
@@ -300,31 +294,48 @@ class LteSimHelperGui( Gtk.Window ):
         self.main_window.show_all()
        
 #------------------------------------------------------------------------------       
-    def update_sim_pbar( self, user_data ):
+    def update_progress_bar( self, user_data ):
 
-        if not self.q.empty():
-            call_back = self.q.get()
-            txt = call_back[0]
-            self.frac = call_back[1]
-            self.sim_pbar.set_show_text( True )
-            self.sim_pbar.set_text( txt )                 
-            self.sim_pbar.set_fraction( self.frac )
-            self.main_window.show_all()        
+        if not self.q_sim.empty():
+            call_back = self.q_sim.get()
+            self.frac = call_back[1]   
+            self.pbar.set_show_text( True )
+            self.pbar.set_text( call_back[0] )                 
+            self.pbar.set_fraction( self.frac )
+            self.main_window.show_all()
+            if call_back[2] and ( not call_back[3] ):
+                self.builder.get_object( 'res_pbar_frm' ).set_sensitive( True )
+                self.builder.get_object( 'sim_pbar_frm' ).set_sensitive( False )
+                self.pbar = self.builder.get_object( 'parse_pbar' )
+                self.proc = Process( target=self.helper.compute_results, args=( self.q_sim, ) )            
+                self.proc.start()   
+            if call_back[2] and call_back[3]:
+                self.builder.get_object( 'res_pbar_frm' ).set_sensitive( False )
+                self.pbar = self.builder.get_object( 'sim_pbar' )
+                self.sim_done_dlg.run()
+                
+                print 'DONE!'
         return True
             
 #------------------------------------------------------------------------------
     def on_run_tool_btn_clicked( self, widget, data=None ):
 
-        done = False
+        self.builder.get_object( 'sim_pbar_frm' ).set_sensitive( True )
+        
+        self.l = []
+
+        self.frac = 0.0
+        self.q_sim = Queue()
+
+        self.timeout_id = GObject.timeout_add( 50, self.update_progress_bar, None )
         
         if self.generate_setup_file():
-            helper = LteSimHelper()
-            p = Process( target=helper.run_simulations, args=( self.q, ) )            
-            p.start() 
-                
-            #helper.run_simulations( self, self.sim_pbar )
-            #helper.compute_results()
-        
+            self.helper = LteSimHelper()            
+            self.proc = Process( target=self.helper.run_simulations, args=( self.q_sim, ) )            
+            self.proc.start()       
+            self.l.append( self.proc.pid )
+            self.start = datetime.now()
+
 
 #------------------------------------------------------------------------------
     def generate_setup_file( self ):
@@ -485,6 +496,55 @@ class LteSimHelperGui( Gtk.Window ):
                  'CQI_REP_INTERVAL=' + cqi_inter + '\n' )
 
         return True
+
+
+#------------------------------------------------------------------------------
+    def on_cancel_sim_btn_clicked( self, widget, data=None ):
+        print 'cancel sim'
+        
+        self.pbar.set_text( 'Canceled' )
+        self.builder.get_object( 'sim_pbar_frm' ).set_sensitive( False )
+       
+        proc_name = self.lte_sim_path.split( '/' )[-1]
+        call( ["ps -C " + proc_name + " | grep " + proc_name + " | tr -c '0123456789 \n' '?' | cut -d '?' -f1 | tr -d ' ' >> pid"], shell=True )
+        
+        Popen( ['kill -9 ' + str( self.proc.pid ) ], shell=True )        
+       
+        f = open( 'pid' )
+        for line in f:
+            Popen( ['kill -9 ' + line.rstrip( '\n' )], shell=True )
+            
+#------------------------------------------------------------------------------
+    def on_cancel_res_btn_clicked( self, widget, data=None ):       
+        self.pbar.set_text( 'Canceled' )
+        self.builder.get_object( 'res_pbar_frm' ).set_sensitive( False )
+
+        proc_name = os.path.abspath( __file__ ).split( '/' )[-1]
+        call( ["ps -C " + proc_name + " | grep " + proc_name[:7] + " | tr -c '0123456789 \n' '?' | cut -d '?' -f1 | tr -d ' ' > pid"], shell=True )
+       
+
+        f = open( 'pid' )
+        for line in f:
+            if line.rstrip( '\n' ) != str( current_process().pid ):
+                print 'killing ', line.rstrip( '\n' ) 
+                Popen( ['kill -9 ' + line.rstrip( '\n' )], shell=True )
+                
+        print self.proc.pid
+        Popen( ['kill -9 ' + str( self.proc.pid ) ], shell=True )        
+        
+        self.pbar = self.builder.get_object( 'sim_pbar' )        
+        
+       
+
+        
+
+#------------------------------------------------------------------------------
+    def on_sim_done_btn_clicked( self, widget, data=None ):
+        self.sim_done_dlg.hide()
+        self.main_window.show_all()
+#------------------------------------------------------------------------------
+    #def( self, widget, data=None ):    
+
     
 
 if __name__ == "__main__":
