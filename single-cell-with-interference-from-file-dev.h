@@ -227,18 +227,18 @@ static void SingleCellWithInterFromFile (int nbUE, string scheduler_type, int se
   //create cells
   std::vector <Cell*> *cells = new std::vector <Cell*>;
   for (int i = 0; i < n_cells; i++)
-	{
-	  CartesianCoordinates center =
-			  GetCartesianCoordinatesForCell(i, radius * 1000.);
+        {
+          CartesianCoordinates center =
+                          GetCartesianCoordinatesForCell(i, radius * 1000.);
 
-	  Cell *c = new Cell (i, radius, 0.035, center.GetCoordinateX (), center.GetCoordinateY ());
-	  cells->push_back (c);
-	  nm->GetCellContainer ()->push_back (c);
+          Cell *c = new Cell (i, radius, 0.035, center.GetCoordinateX (), center.GetCoordinateY ());
+          cells->push_back (c);
+          nm->GetCellContainer ()->push_back (c);
 
-	  std::cout << "Created Cell, id " << c->GetIdCell ()
-			  <<", position: " << c->GetCellCenterPosition ()->GetCoordinateX ()
-			  << " " << c->GetCellCenterPosition ()->GetCoordinateY () << std::endl;
-	}
+          std::cout << "Created Cell, id " << c->GetIdCell ()
+                          <<", position: " << c->GetCellCenterPosition ()->GetCoordinateX ()
+                          << " " << c->GetCellCenterPosition ()->GetCoordinateY () << std::endl;
+        }
 
 
   std::vector <BandwidthManager*> spectrums = RunFrequencyReuseTechniques (n_cells, cluster, dl_bw);
@@ -247,45 +247,45 @@ static void SingleCellWithInterFromFile (int nbUE, string scheduler_type, int se
   std::vector <LteChannel*> *dlChannels = new std::vector <LteChannel*>;
   std::vector <LteChannel*> *ulChannels = new std::vector <LteChannel*>;
   for (int i= 0; i < n_cells; i++)
-	{
-	  LteChannel *dlCh = new LteChannel ();
-	  dlCh->SetChannelId (i);
-	  dlChannels->push_back (dlCh);
+        {
+          LteChannel *dlCh = new LteChannel ();
+          dlCh->SetChannelId (i);
+          dlChannels->push_back (dlCh);
 
-	  LteChannel *ulCh = new LteChannel ();
-	  ulCh->SetChannelId (i);
-	  ulChannels->push_back (ulCh);
-	}
+          LteChannel *ulCh = new LteChannel ();
+          ulCh->SetChannelId (i);
+          ulChannels->push_back (ulCh);
+        }
 
 
   //create eNBs
   std::vector <ENodeB*> *eNBs = new std::vector <ENodeB*>;
   for (int i = 0; i < n_cells; i++)
-	{
-	  ENodeB* enb = new ENodeB (i, cells->at (i));
-	  enb->GetPhy ()->SetDlChannel (dlChannels->at (i));
-	  enb->GetPhy ()->SetUlChannel (ulChannels->at (i));
+        {
+          ENodeB* enb = new ENodeB (i, cells->at (i));
+          enb->GetPhy ()->SetDlChannel (dlChannels->at (i));
+          enb->GetPhy ()->SetUlChannel (ulChannels->at (i));
 
-	  enb->SetDLScheduler (dl_sched_type);
+          enb->SetDLScheduler (dl_sched_type);
 
-	  enb->GetPhy ()->SetBandwidthManager (spectrums.at (i));
+          enb->GetPhy ()->SetBandwidthManager (spectrums.at (i));
 
-	  std::cout << "Created enb, id " << enb->GetIDNetworkNode()
-			  << ", cell id " << enb->GetCell ()->GetIdCell ()
-			  <<", position: " << enb->GetMobilityModel ()->GetAbsolutePosition ()->GetCoordinateX ()
-			  << " " << enb->GetMobilityModel ()->GetAbsolutePosition ()->GetCoordinateY ()
-			  << ", channels id " << enb->GetPhy ()->GetDlChannel ()->GetChannelId ()
-			  << enb->GetPhy ()->GetUlChannel ()->GetChannelId ()  << std::endl;
+          std::cout << "Created enb, id " << enb->GetIDNetworkNode()
+                          << ", cell id " << enb->GetCell ()->GetIdCell ()
+                          <<", position: " << enb->GetMobilityModel ()->GetAbsolutePosition ()->GetCoordinateX ()
+                          << " " << enb->GetMobilityModel ()->GetAbsolutePosition ()->GetCoordinateY ()
+                          << ", channels id " << enb->GetPhy ()->GetDlChannel ()->GetChannelId ()
+                          << enb->GetPhy ()->GetUlChannel ()->GetChannelId ()  << std::endl;
 
-	  spectrums.at (i)->Print ();
-
-
-	  ulChannels->at (i)->AddDevice((NetworkNode*) enb);
+          spectrums.at (i)->Print ();
 
 
-	  nm->GetENodeBContainer ()->push_back (enb);
-	  eNBs->push_back (enb);
-	}
+          ulChannels->at (i)->AddDevice((NetworkNode*) enb);
+
+
+          nm->GetENodeBContainer ()->push_back (enb);
+          eNBs->push_back (enb);
+        }
 
 
 
@@ -309,31 +309,30 @@ static void SingleCellWithInterFromFile (int nbUE, string scheduler_type, int se
   Gateway *gw = new Gateway ();
   nm->GetGatewayContainer ()->push_back (gw);
 
-  int maxXY = radius * 1000;
   //Create UEs
   int idUE = n_cells;
   for (int i = 0; i < nbUE; i++)
-	{
-	  //ue's random position
-	  double posX = (double)rand()/RAND_MAX; posX = 0.95 *
-	  	  	  (((2*radius*1000)*posX) - (radius*1000));
-	  double posY = (double)rand()/RAND_MAX; posY = 0.95 *
-		  (((2*radius*1000)*posY) - (radius*1000));
+        {
+          //ue's random position
+          double posX = (double)rand()/RAND_MAX; posX = 0.95 *
+                          (((2*radius*1000)*posX) - (radius*1000));
+          double posY = (double)rand()/RAND_MAX; posY = 0.95 *
+                  (((2*radius*1000)*posY) - (radius*1000));
 
-	  double speedDirection = GetRandomVariable (360.) * ((2.*3.14)/360.);
+          double speedDirection = GetRandomVariable (360.) * ((2.*3.14)/360.);
 
-	  UserEquipment* ue = new UserEquipment (idUE,
-			                         posX, posY, user_speed, speedDirection,
-						 cells->at (0),
-						 eNBs->at (0),
-			                         0, //handover false!
-			                         mobility_model);
+          UserEquipment* ue = new UserEquipment (idUE,
+                                                                 posX, posY, user_speed, speedDirection,
+                                                                 cells->at (0),
+                                                                 eNBs->at (0),
+                                                                 0, //handover false!
+                                                                 mobility_model);
 
-	  std::cout << "Created UE - id " << idUE << " position " << posX << " " << posY << " direction " << speedDirection << std::endl;
+          std::cout << "Created UE - id " << idUE << " position " << posX << " " << posY << " direction " << speedDirection << std::endl;
 
-	  ue->GetMobilityModel()->GetAbsolutePosition()->Print();
-	  ue->GetPhy ()->SetDlChannel (eNBs->at (0)->GetPhy ()->GetDlChannel ());
-	  ue->GetPhy ()->SetUlChannel (eNBs->at (0)->GetPhy ()->GetUlChannel ());
+          ue->GetMobilityModel()->GetAbsolutePosition()->Print();
+          ue->GetPhy ()->SetDlChannel (eNBs->at (0)->GetPhy ()->GetDlChannel ());
+          ue->GetPhy ()->SetUlChannel (eNBs->at (0)->GetPhy ()->GetUlChannel ());
 
           if ((not(par_map["CQI_METHOD"].compare("FULL_BANDWIDTH"))) and (not(par_map["CQI_REP_MODE"].compare("PERIODIC"))))
             {
@@ -361,284 +360,285 @@ static void SingleCellWithInterFromFile (int nbUE, string scheduler_type, int se
           WidebandCqiEesmErrorModel *errorModel = new WidebandCqiEesmErrorModel ();
           ue->GetPhy ()->SetErrorModel (errorModel);
 
-	  nm->GetUserEquipmentContainer ()->push_back (ue);
+          nm->GetUserEquipmentContainer ()->push_back (ue);
 
-	  // register ue to the enb
-	  eNBs->at (0)->RegisterUserEquipment (ue);
-	  // define the channel realization
-	  MacroCellUrbanAreaChannelRealization* c = new MacroCellUrbanAreaChannelRealization (eNBs->at (0), ue);
-	  c->SetChannelType (ChannelRealization::CHANNEL_TYPE_PED_A);
-	  eNBs->at (0)->GetPhy ()->GetDlChannel ()->GetPropagationLossModel ()->AddChannelRealization (c);
-
-
-	  // CREATE DOWNLINK APPLICATION FOR THIS UE
-	  double start_time = 0.1 + GetRandomVariable (5.);
-	  double duration_time = start_time + sim_time_flow;
-
-	  // *** voip application
-	  for (int j = 0; j < nbVoIP; j++)
-		{
-		  // create application
-		  VoIPApplication[voipApplication].SetSource (gw);
-		  VoIPApplication[voipApplication].SetDestination (ue);
-		  VoIPApplication[voipApplication].SetApplicationID (applicationID);
-		  VoIPApplication[voipApplication].SetStartTime(start_time);
-		  VoIPApplication[voipApplication].SetStopTime(duration_time);
-
-		  // create qos parameters
-		  if (dl_sched_type == ENodeB::DLScheduler_TYPE_FLS)
-			{
-			  QoSForFLS *qos = new QoSForFLS ();
-			  qos->SetMaxDelay (maxDelay);
-			  if (maxDelay == 0.1)
-				{
-				  std::cout << "Target Delay = 0.1 s, M = 9" << std::endl;
-				  qos->SetNbOfCoefficients (9);
-				}
-			  else if (maxDelay == 0.08)
-				{
-				  std::cout << "Target Delay = 0.08 s, M = 7" << std::endl;
-				  qos->SetNbOfCoefficients (7);
-				}
-			  else if (maxDelay == 0.06)
-				{
-				  std::cout << "Target Delay = 0.06 s, M = 5" << std::endl;
-				  qos->SetNbOfCoefficients (5);
-				}
-			  else if (maxDelay == 0.04)
-				{
-				  std::cout << "Target Delay = 0.04 s, M = 3" << std::endl;
-				  qos->SetNbOfCoefficients (3);
-				}
-			  else
-				{
-				  std::cout << "ERROR: target delay is not available"<< std::endl;
-				  return;
-				}
-
-			  VoIPApplication[voipApplication].SetQoSParameters (qos);
-			}
-		  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_EXP)
-			{
-			  QoSForEXP *qos = new QoSForEXP ();
-			  qos->SetMaxDelay (maxDelay);
-			  VoIPApplication[voipApplication].SetQoSParameters (qos);
-			}
-		  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_MLWDF)
-			{
-			  QoSForM_LWDF *qos = new QoSForM_LWDF ();
-			  qos->SetMaxDelay (maxDelay);
-			  VoIPApplication[voipApplication].SetQoSParameters (qos);
-			}
-		  else
-			{
-			  QoSParameters *qos = new QoSParameters ();
-			  qos->SetMaxDelay (maxDelay);
-			  VoIPApplication[voipApplication].SetQoSParameters (qos);
-			}
+          // register ue to the enb
+          eNBs->at (0)->RegisterUserEquipment (ue);
+          // define the channel realization
+          MacroCellUrbanAreaChannelRealization* c_dl = new MacroCellUrbanAreaChannelRealization (eNBs->at (0), ue);
+          eNBs->at (0)->GetPhy ()->GetDlChannel ()->GetPropagationLossModel ()->AddChannelRealization (c_dl);
+          MacroCellUrbanAreaChannelRealization* c_ul = new MacroCellUrbanAreaChannelRealization (ue, eNBs->at (0));
+          eNBs->at (0)->GetPhy ()->GetUlChannel ()->GetPropagationLossModel ()->AddChannelRealization (c_ul);
 
 
-		  //create classifier parameters
-		  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
-															   ue->GetIDNetworkNode(),
-															   0,
-															   destinationPort,
-															   TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
-		  VoIPApplication[voipApplication].SetClassifierParameters (cp);
+          // CREATE DOWNLINK APPLICATION FOR THIS UE
+          double start_time = 0.1 + GetRandomVariable (5.);
+          double duration_time = start_time + sim_time_flow;
 
-		  std::cout << "CREATED VOIP APPLICATION, ID " << applicationID << std::endl;
+          // *** voip application
+          for (int j = 0; j < nbVoIP; j++)
+                {
+                  // create application
+                  VoIPApplication[voipApplication].SetSource (gw);
+                  VoIPApplication[voipApplication].SetDestination (ue);
+                  VoIPApplication[voipApplication].SetApplicationID (applicationID);
+                  VoIPApplication[voipApplication].SetStartTime(start_time);
+                  VoIPApplication[voipApplication].SetStopTime(duration_time);
 
-		  //update counter
-		  destinationPort++;
-		  applicationID++;
-		  voipApplication++;
-		}
+                  // create qos parameters
+                  if (dl_sched_type == ENodeB::DLScheduler_TYPE_FLS)
+                        {
+                          QoSForFLS *qos = new QoSForFLS ();
+                          qos->SetMaxDelay (maxDelay);
+                          if (maxDelay == 0.1)
+                                {
+                                  std::cout << "Target Delay = 0.1 s, M = 9" << std::endl;
+                                  qos->SetNbOfCoefficients (9);
+                                }
+                          else if (maxDelay == 0.08)
+                                {
+                                  std::cout << "Target Delay = 0.08 s, M = 7" << std::endl;
+                                  qos->SetNbOfCoefficients (7);
+                                }
+                          else if (maxDelay == 0.06)
+                                {
+                                  std::cout << "Target Delay = 0.06 s, M = 5" << std::endl;
+                                  qos->SetNbOfCoefficients (5);
+                                }
+                          else if (maxDelay == 0.04)
+                                {
+                                  std::cout << "Target Delay = 0.04 s, M = 3" << std::endl;
+                                  qos->SetNbOfCoefficients (3);
+                                }
+                          else
+                                {
+                                  std::cout << "ERROR: target delay is not available"<< std::endl;
+                                  return;
+                                }
 
-
-	  // *** video application
-	  for (int j = 0; j < nbVideo; j++)
-		{
-		  // create application
-		  VideoApplication[videoApplication].SetSource (gw);
-		  VideoApplication[videoApplication].SetDestination (ue);
-		  VideoApplication[videoApplication].SetApplicationID (applicationID);
-		  VideoApplication[videoApplication].SetStartTime(start_time);
-		  VideoApplication[videoApplication].SetStopTime(duration_time);
-
-		  string video_trace ("foreman_H264_");
-		  //string video_trace ("highway_H264_");
-		  //string video_trace ("mobile_H264_");
-
-		  switch (videoBitRate)
-			  {
-				case 128:
-				  {
-				    string _file (path + "src/flows/application/Trace/" + video_trace + "128k.dat");
-				    VideoApplication[videoApplication].SetTraceFile(_file);
-				    std::cout << "		selected video @ 128k " << _file << std::endl;
-				    break;
-				  }
-				case 242:
-				  {
-				        string _file (path + "src/flows/application/Trace/" + video_trace + "242k.dat");
-				    VideoApplication[videoApplication].SetTraceFile(_file);
-				    std::cout << "		selected video @ 242k"<< std::endl;
-				    break;
-				  }
-				case 440:
-				  {
-				    string _file (path + "src/flows/application/Trace/" + video_trace + "440k.dat");
- 			        VideoApplication[videoApplication].SetTraceFile(_file);
-				    std::cout << "		selected video @ 440k"<< std::endl;
-				    break;
-				  }
-				default:
-				  {
-				    string _file (path + "src/flows/application/Trace/" + video_trace + "128k.dat");
-				    VideoApplication[videoApplication].SetTraceFile(_file);
-				    std::cout << "		selected video @ 128k as default"<< std::endl;
-				    break;
-				  }
-			  }
-
-		  // create qos parameters
-		  if (dl_sched_type == ENodeB::DLScheduler_TYPE_FLS)
-			{
-			  QoSForFLS *qos = new QoSForFLS ();
-			  qos->SetMaxDelay (maxDelay);
-			  if (maxDelay == 0.1)
-				{
-				  std::cout << "Target Delay = 0.1 s, M = 9" << std::endl;
-				  qos->SetNbOfCoefficients (9);
-				}
-			  else if (maxDelay == 0.08)
-				{
-				  std::cout << "Target Delay = 0.08 s, M = 7" << std::endl;
-				  qos->SetNbOfCoefficients (7);
-				}
-			  else if (maxDelay == 0.06)
-				{
-				  std::cout << "Target Delay = 0.06 s, M = 5" << std::endl;
-				  qos->SetNbOfCoefficients (5);
-				}
-			  else if (maxDelay == 0.04)
-				{
-				  std::cout << "Target Delay = 0.04 s, M = 3" << std::endl;
-				  qos->SetNbOfCoefficients (3);
-				}
-			  else
-				{
-				  std::cout << "ERROR: target delay is not available"<< std::endl;
-				  return;
-				}
-			  VideoApplication[videoApplication].SetQoSParameters (qos);
-			}
-		  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_EXP)
-			{
-			  QoSForEXP *qos = new QoSForEXP ();
-			  qos->SetMaxDelay (maxDelay);
-			  VideoApplication[videoApplication].SetQoSParameters (qos);
-			}
-		  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_MLWDF)
-			{
-			  QoSForM_LWDF *qos = new QoSForM_LWDF ();
-			  qos->SetMaxDelay (maxDelay);
-			  VideoApplication[videoApplication].SetQoSParameters (qos);
-			}
-		  else
-			{
-			  QoSParameters *qos = new QoSParameters ();
-			  qos->SetMaxDelay (maxDelay);
-			  VideoApplication[videoApplication].SetQoSParameters (qos);
-			}
+                          VoIPApplication[voipApplication].SetQoSParameters (qos);
+                        }
+                  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_EXP)
+                        {
+                          QoSForEXP *qos = new QoSForEXP ();
+                          qos->SetMaxDelay (maxDelay);
+                          VoIPApplication[voipApplication].SetQoSParameters (qos);
+                        }
+                  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_MLWDF)
+                        {
+                          QoSForM_LWDF *qos = new QoSForM_LWDF ();
+                          qos->SetMaxDelay (maxDelay);
+                          VoIPApplication[voipApplication].SetQoSParameters (qos);
+                        }
+                  else
+                        {
+                          QoSParameters *qos = new QoSParameters ();
+                          qos->SetMaxDelay (maxDelay);
+                          VoIPApplication[voipApplication].SetQoSParameters (qos);
+                        }
 
 
-		  //create classifier parameters
-		  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
-															   ue->GetIDNetworkNode(),
-															   0,
-															   destinationPort,
-															   TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
-		  VideoApplication[videoApplication].SetClassifierParameters (cp);
+                  //create classifier parameters
+                  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
+                                                                                                                           ue->GetIDNetworkNode(),
+                                                                                                                           0,
+                                                                                                                           destinationPort,
+                                                                                                                           TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
+                  VoIPApplication[voipApplication].SetClassifierParameters (cp);
 
-		  std::cout << "CREATED VIDEO APPLICATION, ID " << applicationID << std::endl;
+                  std::cout << "CREATED VOIP APPLICATION, ID " << applicationID << std::endl;
 
-		  //update counter
-		  destinationPort++;
-		  applicationID++;
-		  videoApplication++;
-		}
-
-	  // *** be application
-	  for (int j = 0; j < nbBE; j++)
-		{
-		  // create application
-		  BEApplication[beApplication].SetSource (gw);
-		  BEApplication[beApplication].SetDestination (ue);
-		  BEApplication[beApplication].SetApplicationID (applicationID);
-		  BEApplication[beApplication].SetStartTime(start_time);
-		  BEApplication[beApplication].SetStopTime(duration_time);
+                  //update counter
+                  destinationPort++;
+                  applicationID++;
+                  voipApplication++;
+                }
 
 
-		  // create qos parameters
-		  QoSParameters *qosParameters = new QoSParameters ();
-		  BEApplication[beApplication].SetQoSParameters (qosParameters);
+          // *** video application
+          for (int j = 0; j < nbVideo; j++)
+                {
+                  // create application
+                  VideoApplication[videoApplication].SetSource (gw);
+                  VideoApplication[videoApplication].SetDestination (ue);
+                  VideoApplication[videoApplication].SetApplicationID (applicationID);
+                  VideoApplication[videoApplication].SetStartTime(start_time);
+                  VideoApplication[videoApplication].SetStopTime(duration_time);
+
+                  string video_trace ("foreman_H264_");
+                  //string video_trace ("highway_H264_");
+                  //string video_trace ("mobile_H264_");
+
+                  switch (videoBitRate)
+                          {
+                                case 128:
+                                  {
+                                    string _file (path + "src/flows/application/Trace/" + video_trace + "128k.dat");
+                                    VideoApplication[videoApplication].SetTraceFile(_file);
+                                    std::cout << "              selected video @ 128k " << _file << std::endl;
+                                    break;
+                                  }
+                                case 242:
+                                  {
+                                        string _file (path + "src/flows/application/Trace/" + video_trace + "242k.dat");
+                                    VideoApplication[videoApplication].SetTraceFile(_file);
+                                    std::cout << "              selected video @ 242k"<< std::endl;
+                                    break;
+                                  }
+                                case 440:
+                                  {
+                                    string _file (path + "src/flows/application/Trace/" + video_trace + "440k.dat");
+                                VideoApplication[videoApplication].SetTraceFile(_file);
+                                    std::cout << "              selected video @ 440k"<< std::endl;
+                                    break;
+                                  }
+                                default:
+                                  {
+                                    string _file (path + "src/flows/application/Trace/" + video_trace + "128k.dat");
+                                    VideoApplication[videoApplication].SetTraceFile(_file);
+                                    std::cout << "              selected video @ 128k as default"<< std::endl;
+                                    break;
+                                  }
+                          }
+
+                  // create qos parameters
+                  if (dl_sched_type == ENodeB::DLScheduler_TYPE_FLS)
+                        {
+                          QoSForFLS *qos = new QoSForFLS ();
+                          qos->SetMaxDelay (maxDelay);
+                          if (maxDelay == 0.1)
+                                {
+                                  std::cout << "Target Delay = 0.1 s, M = 9" << std::endl;
+                                  qos->SetNbOfCoefficients (9);
+                                }
+                          else if (maxDelay == 0.08)
+                                {
+                                  std::cout << "Target Delay = 0.08 s, M = 7" << std::endl;
+                                  qos->SetNbOfCoefficients (7);
+                                }
+                          else if (maxDelay == 0.06)
+                                {
+                                  std::cout << "Target Delay = 0.06 s, M = 5" << std::endl;
+                                  qos->SetNbOfCoefficients (5);
+                                }
+                          else if (maxDelay == 0.04)
+                                {
+                                  std::cout << "Target Delay = 0.04 s, M = 3" << std::endl;
+                                  qos->SetNbOfCoefficients (3);
+                                }
+                          else
+                                {
+                                  std::cout << "ERROR: target delay is not available"<< std::endl;
+                                  return;
+                                }
+                          VideoApplication[videoApplication].SetQoSParameters (qos);
+                        }
+                  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_EXP)
+                        {
+                          QoSForEXP *qos = new QoSForEXP ();
+                          qos->SetMaxDelay (maxDelay);
+                          VideoApplication[videoApplication].SetQoSParameters (qos);
+                        }
+                  else if (dl_sched_type == ENodeB::DLScheduler_TYPE_MLWDF)
+                        {
+                          QoSForM_LWDF *qos = new QoSForM_LWDF ();
+                          qos->SetMaxDelay (maxDelay);
+                          VideoApplication[videoApplication].SetQoSParameters (qos);
+                        }
+                  else
+                        {
+                          QoSParameters *qos = new QoSParameters ();
+                          qos->SetMaxDelay (maxDelay);
+                          VideoApplication[videoApplication].SetQoSParameters (qos);
+                        }
 
 
-		  //create classifier parameters
-		  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
-															   ue->GetIDNetworkNode(),
-															   0,
-															   destinationPort,
-															   TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
-		  BEApplication[beApplication].SetClassifierParameters (cp);
+                  //create classifier parameters
+                  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
+                                                                                                                           ue->GetIDNetworkNode(),
+                                                                                                                           0,
+                                                                                                                           destinationPort,
+                                                                                                                           TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
+                  VideoApplication[videoApplication].SetClassifierParameters (cp);
 
-		  std::cout << "CREATED BE APPLICATION, ID " << applicationID << std::endl;
+                  std::cout << "CREATED VIDEO APPLICATION, ID " << applicationID << std::endl;
 
-		  //update counter
-		  destinationPort++;
-		  applicationID++;
-		  beApplication++;
-		}
+                  //update counter
+                  destinationPort++;
+                  applicationID++;
+                  videoApplication++;
+                }
 
-	  // *** cbr application
-	  for (int j = 0; j < nbCBR; j++)
-		{
-		  // create application
-		  CBRApplication[cbrApplication].SetSource (gw);
-		  CBRApplication[cbrApplication].SetDestination (ue);
-		  CBRApplication[cbrApplication].SetApplicationID (applicationID);
-		  CBRApplication[cbrApplication].SetStartTime(start_time);
-		  CBRApplication[cbrApplication].SetStopTime(duration_time);
-		  CBRApplication[cbrApplication].SetInterval (0.04);
-		  CBRApplication[cbrApplication].SetSize (5);
-
-		  // create qos parameters
-		  QoSParameters *qosParameters = new QoSParameters ();
-		  qosParameters->SetMaxDelay (maxDelay);
-
-		  CBRApplication[cbrApplication].SetQoSParameters (qosParameters);
+          // *** be application
+          for (int j = 0; j < nbBE; j++)
+                {
+                  // create application
+                  BEApplication[beApplication].SetSource (gw);
+                  BEApplication[beApplication].SetDestination (ue);
+                  BEApplication[beApplication].SetApplicationID (applicationID);
+                  BEApplication[beApplication].SetStartTime(start_time);
+                  BEApplication[beApplication].SetStopTime(duration_time);
 
 
-		  //create classifier parameters
-		  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
-															   ue->GetIDNetworkNode(),
-															   0,
-															   destinationPort,
-															   TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
-		  CBRApplication[cbrApplication].SetClassifierParameters (cp);
+                  // create qos parameters
+                  QoSParameters *qosParameters = new QoSParameters ();
+                  BEApplication[beApplication].SetQoSParameters (qosParameters);
 
-		  std::cout << "CREATED CBR APPLICATION, ID " << applicationID << std::endl;
 
-		  //update counter
-		  destinationPort++;
-		  applicationID++;
-		  cbrApplication++;
-		}
+                  //create classifier parameters
+                  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
+                                                                                                                           ue->GetIDNetworkNode(),
+                                                                                                                           0,
+                                                                                                                           destinationPort,
+                                                                                                                           TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
+                  BEApplication[beApplication].SetClassifierParameters (cp);
 
-	  idUE++;
+                  std::cout << "CREATED BE APPLICATION, ID " << applicationID << std::endl;
 
-	}
+                  //update counter
+                  destinationPort++;
+                  applicationID++;
+                  beApplication++;
+                }
+
+          // *** cbr application
+          for (int j = 0; j < nbCBR; j++)
+                {
+                  // create application
+                  CBRApplication[cbrApplication].SetSource (gw);
+                  CBRApplication[cbrApplication].SetDestination (ue);
+                  CBRApplication[cbrApplication].SetApplicationID (applicationID);
+                  CBRApplication[cbrApplication].SetStartTime(start_time);
+                  CBRApplication[cbrApplication].SetStopTime(duration_time);
+                  CBRApplication[cbrApplication].SetInterval (0.04);
+                  CBRApplication[cbrApplication].SetSize (5);
+
+                  // create qos parameters
+                  QoSParameters *qosParameters = new QoSParameters ();
+                  qosParameters->SetMaxDelay (maxDelay);
+
+                  CBRApplication[cbrApplication].SetQoSParameters (qosParameters);
+
+
+                  //create classifier parameters
+                  ClassifierParameters *cp = new ClassifierParameters (gw->GetIDNetworkNode(),
+                                                                                                                           ue->GetIDNetworkNode(),
+                                                                                                                           0,
+                                                                                                                           destinationPort,
+                                                                                                                           TransportProtocol::TRANSPORT_PROTOCOL_TYPE_UDP);
+                  CBRApplication[cbrApplication].SetClassifierParameters (cp);
+
+                  std::cout << "CREATED CBR APPLICATION, ID " << applicationID << std::endl;
+
+                  //update counter
+                  destinationPort++;
+                  applicationID++;
+                  cbrApplication++;
+                }
+
+          idUE++;
+
+        }
 
 
 
